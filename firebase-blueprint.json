@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "Mood": {
+      "title": "Mood",
+      "description": "Daily mood log of a partner",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The partner who set the mood (Nauraa or Farsya)" },
+        "dateStr": { "type": "string", "description": "Date string of the mood" },
+        "displayDate": { "type": "string", "description": "Formatted date displayed to the user" },
+        "time": { "type": "string", "description": "Formatted time representation of the mood" },
+        "mood": { "type": "string", "description": "Emoji representing the mood" },
+        "label": { "type": "string", "description": "Mood label description" },
+        "color": { "type": "string", "description": "Hex color profile associated with the mood" },
+        "note": { "type": "string", "description": "An optional romantic or descriptive note" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
+      },
+      "required": ["userId", "dateStr", "displayDate", "time", "mood", "label", "color", "note", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Love letters, chats, and voice notes shared between partners",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The sender of the message" },
+        "text": { "type": "string", "description": "Text message content" },
+        "voiceBase64": { "type": "string", "description": "Optional base64 raw recorded audio data for voice note" },
+        "voiceDuration": { "type": "integer", "description": "Optional recorded duration of the voice note" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
+      },
+      "required": ["userId", "text", "createdAt"]
+    },
+    "SecuritySettings": {
+      "title": "SecuritySettings",
+      "description": "PIN lock screen security settings",
+      "type": "object",
+      "properties": {
+        "pinHash": { "type": "string", "description": "Encrypted/Hashed 4-digit PIN for device lock screen security" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of security configuration" }
+      },
+      "required": ["pinHash"]
+    }
+  },
+  "firestore": {
+    "/moods/{moodId}": {
+      "schema": "Mood",
+      "description": "Mood logs recorded by Nauraa or Farsya"
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat and voice messages exchanged"
+    },
+    "/settings/{settingId}": {
+      "schema": "SecuritySettings",
+      "description": "Device lock and security settings"
+    }
+  }
+}

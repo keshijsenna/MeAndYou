@@ -1,0 +1,1791 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #0A0A0E;
+  --color-bg-secondary: #111118;
+  --color-bg-card: rgba(25, 25, 40, 0.4);
+  --color-accent-pink: #EBC2C6;
+  --color-accent-mint: #B7E3E0;
+  --color-accent-lavender: #D6C2E8;
+  --color-accent-gold: #E8D5A3;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #9A9AB0;
+  --color-text-muted: #5A5A70;
+  
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  :root {
+    --bg-primary:     #0A0A0E;
+    --bg-secondary:   #111118;
+    --bg-card:        rgba(25, 25, 40, 0.4);
+    --accent-pink:    #EBC2C6;
+    --accent-mint:    #B7E3E0;
+    --accent-lavender:#D6C2E8;
+    --accent-gold:    #E8D5A3;
+    --text-primary:   #ffffff;
+    --text-secondary: #9A9AB0;
+    --text-muted:     #5A5A70;
+    --border-glass:   rgba(232,180,184,0.25);
+    --border-active:  rgba(232,180,184,0.6);
+    --shadow-card:    0 25px 45px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.08);
+    --shadow-glow-pink: 0 0 30px rgba(235,194,198,0.3);
+    --shadow-glow-mint: 0 0 30px rgba(183,227,224,0.3);
+    --gradient-btn:   linear-gradient(90deg, #EBC2C6 0%, #D6C2E8 100%);
+    --gradient-card:  linear-gradient(145deg, rgba(235,194,198,0.08) 0%, rgba(214,194,232,0.05) 100%);
+    --gradient-hero:  linear-gradient(180deg, #0A0A0E 0%, #111118 100%);
+    --radius-card:    48px;
+    --radius-btn:     60px;
+    --radius-input:   60px;
+    --ease-spring:    cubic-bezier(0.34, 1.2, 0.64, 1);
+    --duration-base:  0.45s;
+  }
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden; /* Hide scroll as requested mostly in the app shell */
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(235, 194, 198, 0.3);
+    border-radius: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(235, 194, 198, 0.6);
+  }
+}
+
+/* ==========================================================
+   BREAKPOINT SYSTEM — 5 KONDISI LENGKAP
+   ========================================================== */
+
+:root {
+  /* DEFAULT = mobile xs 320px–390px */
+  --page-px:          14px;
+  --page-max-width:   480px;
+  --card-radius:      20px;
+  --card-padding:     16px;
+  --card-gap:         10px;
+  --font-h1:          22px;
+  --font-h2:          14px;
+  --font-h3:          12px;
+  --font-body:        13px;
+  --font-caption:     10px;
+  --font-label:       9px;
+  --avatar-size:      78px;
+  --avatar-container: 160px; /* Adjusted to fit the layout perfectly */
+  --photo-main-h:     200px;
+  --thumb-size:       44px;
+  --thumb-gap:        6px;
+  --stat-font:        24px;
+  --stat-label-font:  9px;
+  --countdown-font:   30px;
+  --countdown-box-w:  58px;
+  --streak-font:      60px;
+  --btn-padding:      12px 18px;
+  --btn-font:         12px;
+  --btn-radius:       60px;
+  --grid-cols-photo:  repeat(2, 1fr);
+  --grid-gap:         7px;
+  --timeline-img-w:   76px;
+  --timeline-img-h:   76px;
+  --badge-font:       9px;
+  --badge-px:         8px;
+  --badge-py:         4px;
+  --bottom-nav-h:     56px;
+  --icon-size:        18px;
+  --progress-ring-r:  70px;
+}
+
+/* SM — HP normal 391px–430px (iPhone 14, Galaxy S) */
+@media (min-width: 391px) {
+  :root {
+    --page-px:          16px;
+    --card-radius:      22px;
+    --card-padding:     18px;
+    --card-gap:         12px;
+    --font-h1:          24px;
+    --font-h2:          15px;
+    --font-h3:          13px;
+    --font-body:        13px;
+    --font-caption:     11px;
+    --font-label:       10px;
+    --avatar-size:      86px;
+    --avatar-container: 180px;
+    --photo-main-h:     220px;
+    --thumb-size:       50px;
+    --thumb-gap:        7px;
+    --stat-font:        26px;
+    --stat-label-font:  10px;
+    --countdown-font:   34px;
+    --countdown-box-w:  64px;
+    --streak-font:      68px;
+    --btn-padding:      13px 22px;
+    --btn-font:         13px;
+    --grid-gap:         8px;
+    --timeline-img-w:   82px;
+    --timeline-img-h:   82px;
+    --badge-font:       10px;
+    --badge-px:         10px;
+    --bottom-nav-h:     58px;
+    --icon-size:         20px;
+    --progress-ring-r:  76px;
+  }
+}
+
+/* MD — HP besar / tablet kecil 431px–767px */
+@media (min-width: 431px) {
+  :root {
+    --page-px:          20px;
+    --page-max-width:   560px;
+    --card-radius:      24px;
+    --card-padding:     22px;
+    --card-gap:         14px;
+    --font-h1:          26px;
+    --font-h2:          16px;
+    --font-h3:          14px;
+    --font-body:        14px;
+    --font-caption:     12px;
+    --font-label:       11px;
+    --avatar-size:      96px;
+    --avatar-container: 200px;
+    --photo-main-h:     250px;
+    --thumb-size:       56px;
+    --thumb-gap:        8px;
+    --stat-font:        28px;
+    --stat-label-font:  10px;
+    --countdown-font:   38px;
+    --countdown-box-w:  70px;
+    --streak-font:      76px;
+    --btn-padding:      14px 28px;
+    --btn-font:         14px;
+    --grid-cols-photo:  repeat(3, 1fr);
+    --grid-gap:         9px;
+    --timeline-img-w:   90px;
+    --timeline-img-h:   90px;
+    --badge-font:       11px;
+    --badge-px:         12px;
+    --bottom-nav-h:     60px;
+    --icon-size:        20px;
+    --progress-ring-r:  82px;
+  }
+}
+
+/* LG — Tablet / laptop kecil 768px–1199px */
+@media (min-width: 768px) {
+  :root {
+    --page-px:          32px;
+    --page-max-width:   680px;
+    --card-radius:      28px;
+    --card-padding:     28px;
+    --card-gap:         16px;
+    --font-h1:          32px;
+    --font-h2:          18px;
+    --font-h3:          15px;
+    --font-body:        15px;
+    --font-caption:     12px;
+    --font-label:       11px;
+    --avatar-size:      110px;
+    --avatar-container: 220px;
+    --photo-main-h:     300px;
+    --thumb-size:       64px;
+    --thumb-gap:        10px;
+    --stat-font:        32px;
+    --stat-label-font:  11px;
+    --countdown-font:   44px;
+    --countdown-box-w:  80px;
+    --streak-font:      88px;
+    --btn-padding:      16px 36px;
+    --btn-font:         15px;
+    --grid-cols-photo:  repeat(3, 1fr);
+    --grid-gap:         12px;
+    --timeline-img-w:   100px;
+    --timeline-img-h:   100px;
+    --badge-font:       11px;
+    --badge-px:         14px;
+    --bottom-nav-h:     0px;   /* hilang di tablet ke atas */
+    --icon-size:        22px;
+    --progress-ring-r:  90px;
+  }
+}
+
+/* XL — Desktop 1200px ke atas */
+@media (min-width: 1200px) {
+  :root {
+    --page-px:          40px;
+    --page-max-width:   1100px; /* Expands wider for desktop columns layout */
+    --card-radius:      32px;
+    --card-padding:     36px;
+    --card-gap:         20px;
+    --font-h1:          40px;
+    --font-h2:          20px;
+    --font-h3:          16px;
+    --font-body:        15px;
+    --font-caption:     13px;
+    --font-label:       12px;
+    --avatar-size:      130px;
+    --avatar-container: 240px;
+    --photo-main-h:     360px;
+    --thumb-size:       72px;
+    --thumb-gap:        12px;
+    --stat-font:        36px;
+    --stat-label-font:  12px;
+    --countdown-font:   52px;
+    --countdown-box-w:  96px;
+    --streak-font:      100px;
+    --btn-padding:      18px 48px;
+    --btn-font:         16px;
+    --grid-cols-photo:  repeat(4, 1fr);
+    --grid-gap:         14px;
+    --timeline-img-w:   120px;
+    --timeline-img-h:   120px;
+    --badge-font:       12px;
+    --badge-px:         16px;
+    --bottom-nav-h:     0px;
+    --icon-size:        24px;
+    --progress-ring-r:  100px;
+  }
+}
+
+/* ==========================================================
+   ROOT CONTAINER — SEMUA DEVICE
+   ========================================================== */
+
+.profile-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding-left: var(--page-px);
+  padding-right: var(--page-px);
+  padding-top: 88px;
+  padding-bottom: calc(
+    var(--bottom-nav-h) + env(safe-area-inset-bottom) + 24px
+  );
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Desktop: layout dua kolom */
+@media (min-width: 1200px) {
+  .profile-root {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  /* Kolom kiri: hero + streak + profile cards */
+  .col-left {
+    grid-column: 1;
+  }
+
+  /* Kolom kanan: stats + milestone + zodiac + love language */
+  .col-right {
+    grid-column: 2;
+  }
+
+  /* Full width: foto gallery + memory + timeline + final */
+  .col-full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Semua card: full width dalam kolom */
+.glass-card {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(18, 18, 26, 0.85);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  margin-bottom: var(--card-gap);
+  overflow: hidden;    /* WAJIB — cegah child overflow */
+}
+
+/* ==========================================================
+   SECTION HERO COUPLE — SEMUA DEVICE
+   ========================================================== */
+
+.hero-section {
+  text-align: center;
+  padding: 24px var(--page-px) 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Label "LOVE JOURNEY" */
+.hero-label {
+  font-size: var(--font-caption);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 16px;
+}
+
+/* Container dua foto bulat */
+.hero-avatars {
+  position: relative;
+  width: var(--avatar-container);
+  height: var(--avatar-size);
+  margin: 0 auto 16px;
+  flex-shrink: 0;
+}
+
+.hero-avatar {
+  position: absolute;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+  top: 0;
+}
+
+.hero-avatar-left  { left: 0;  border: 3px solid #EBC2C6; z-index: 1; }
+.hero-avatar-right { right: 0; border: 3px solid #D6C2E8; z-index: 1; }
+
+.hero-heart {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #EBC2C6;
+  background: #0A0A0E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Nama pasangan */
+.hero-names {
+  font-size: var(--font-h1);
+  font-weight: 800;
+  background: linear-gradient(135deg, #EBC2C6, #D6C2E8, #B7E3E0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+  margin-bottom: 6px;
+
+  /* Cegah teks terpotong */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Tanggal jadian */
+.hero-date {
+  font-size: var(--font-body);
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 14px;
+}
+
+/* Counter hari/jam/menit/detik */
+.hero-counter {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  max-width: 100%;
+}
+
+.hero-counter::-webkit-scrollbar { display: none; }
+
+.hero-counter-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(235,194,198,0.07);
+  border: 1px solid rgba(235,194,198,0.12);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 54px;
+  flex-shrink: 0;
+}
+
+/* xs: lebih compact */
+@media (max-width: 390px) {
+  .hero-counter-unit {
+    min-width: 46px;
+    padding: 6px 8px;
+  }
+}
+
+.hero-counter-number {
+  font-size: var(--font-h2);
+  font-weight: 800;
+  color: #EBC2C6;
+  line-height: 1;
+}
+
+.hero-counter-label {
+  font-size: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 4px;
+}
+
+/* Badge "Sedang Pacaran" */
+.hero-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(183,227,224,0.1);
+  border: 1px solid rgba(183,227,224,0.25);
+  border-radius: 60px;
+  padding: 6px 14px;
+  font-size: var(--font-caption);
+  color: #B7E3E0;
+  font-weight: 500;
+  margin-top: 12px;
+}
+
+.hero-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #B7E3E0;
+  flex-shrink: 0;
+}
+
+/* Desktop: hero lebih besar */
+@media (min-width: 768px) {
+  .hero-section {
+    padding: 40px var(--page-px) 32px;
+  }
+  .hero-names {
+    white-space: normal;  /* boleh wrap di desktop */
+  }
+}
+
+/* ==========================================================
+   STREAK COUNTER — SEMUA DEVICE
+   ========================================================== */
+
+.streak-number {
+  font-size: var(--streak-font);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+
+  /* xs: pastikan tidak overflow */
+  max-width: 100%;
+  overflow: visible;
+}
+
+/* Progress ring SVG */
+.streak-ring-svg {
+  width: calc(var(--progress-ring-r) * 2 + 40px);
+  height: calc(var(--progress-ring-r) * 2 + 40px);
+  max-width: 100%;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Milestone badges — horizontal scroll */
+.streak-milestones {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  padding-left: 2px;
+  padding-right: 2px;
+  margin-top: 14px;
+}
+
+.streak-milestones::-webkit-scrollbar { display: none; }
+
+.streak-badge {
+  flex-shrink: 0;
+  border-radius: 60px;
+  padding: var(--badge-py) var(--badge-px);
+  font-size: var(--badge-font);
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: center;
+  min-width: 60px;
+}
+
+.streak-badge-sublabel {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+  margin-top: 2px;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
+/* Desktop: badges tidak perlu scroll */
+@media (min-width: 768px) {
+  .streak-milestones {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================
+   PROFILE CARDS (TAB NAURA/FARSYA) — SEMUA DEVICE
+   ========================================================== */
+
+/* Tab switcher */
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.profile-tab {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 60px;
+  font-size: var(--font-body);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.profile-tab.active {
+  background: linear-gradient(135deg, #EBC2C6, #D6C2E8);
+  border-color: transparent;
+  color: #1A0A0C;
+}
+
+/* Foto utama profil */
+.profile-photo-main {
+  width: 100%;
+  height: var(--photo-main-h);
+  border-radius: calc(var(--card-radius) - 4px);
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  background: rgba(255,255,255,0.05);
+}
+
+/* Thumbnail strip */
+.profile-thumbs {
+  display: flex;
+  gap: var(--thumb-gap);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-top: 8px;
+  padding-bottom: 2px;
+}
+
+.profile-thumbs::-webkit-scrollbar { display: none; }
+
+.profile-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 10px;
+  object-fit: cover;
+  object-position: center top;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+  background: rgba(255,255,255,0.05);
+}
+
+.profile-thumb.active {
+  border-color: #EBC2C6;
+  opacity: 1;
+}
+
+.profile-thumb.inactive {
+  opacity: 0.5;
+  filter: grayscale(20%);
+}
+
+/* Data grid 2x3 */
+.profile-data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.profile-data-cell {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;    /* WAJIB — cegah overflow dalam grid */
+  overflow: hidden;
+}
+
+.profile-data-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.profile-data-value {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: #F5F5F5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-data-label {
+  font-size: var(--font-caption);
+  color: rgba(255,255,255,0.35);
+}
+
+/* Desktop: grid 3 kolom */
+@media (min-width: 768px) {
+  .profile-data-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ==========================================================
+   STATISTIK KITA — SEMUA DEVICE
+   ========================================================== */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-cell {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 16px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stat-number {
+  font-size: var(--stat-font);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.stat-label {
+  font-size: var(--stat-label-font);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+
+/* xs: angka jutaan bisa overflow */
+@media (max-width: 390px) {
+  .stat-number {
+    font-size: 20px;
+  }
+  .stat-label {
+    font-size: 8px;
+    letter-spacing: 0.8px;
+  }
+}
+
+/* Desktop: 4 kolom */
+@media (min-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stats-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+.stats-footer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-caption);
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Desktop: footer row horizontal */
+@media (min-width: 768px) {
+  .stats-footer {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+}
+
+/* ==========================================================
+   MILESTONE TIMELINE — SEMUA DEVICE
+   ========================================================== */
+
+.milestone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+/* Garis vertikal */
+.milestone-list::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    #EBC2C6, #D6C2E8, #B7E3E0, rgba(255,255,255,0.05)
+  );
+  border-radius: 2px;
+}
+
+.milestone-item {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  padding: 12px 0;
+  padding-left: 30px;
+  position: relative;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.milestone-item:last-child {
+  border-bottom: none;
+}
+
+/* Dot */
+.milestone-dot {
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Konten teks */
+.milestone-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.milestone-title-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;     /* badge bisa wrap ke baris baru */
+  min-width: 0;
+}
+
+.milestone-title {
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: #F5F5F5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+/* xs: lebih pendek */
+@media (max-width: 390px) {
+  .milestone-title {
+    max-width: 110px;
+  }
+}
+
+.milestone-badge {
+  font-size: var(--badge-font);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.milestone-date {
+  font-size: var(--font-caption);
+  color: rgba(255,255,255,0.35);
+  margin-top: 3px;
+}
+
+.milestone-countdown {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Desktop: lebih lebar */
+@media (min-width: 768px) {
+  .milestone-title {
+    max-width: 200px;
+  }
+}
+
+/* ==========================================================
+   NEXT EVENT COUNTDOWN — SEMUA DEVICE
+   ========================================================== */
+
+.countdown-units {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 4px 2px;
+}
+
+.countdown-units::-webkit-scrollbar { display: none; }
+
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(235,194,198,0.15);
+  border-radius: 16px;
+  padding: 12px 8px;
+  min-width: var(--countdown-box-w);
+  flex-shrink: 0;
+}
+
+.countdown-number {
+  font-size: var(--countdown-font);
+  font-weight: 900;
+  color: #EBC2C6;
+  line-height: 1;
+}
+
+.countdown-label {
+  font-size: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 5px;
+  white-space: nowrap;
+}
+
+/* xs: lebih compact */
+@media (max-width: 390px) {
+  .countdown-unit {
+    min-width: 54px;
+    padding: 10px 6px;
+  }
+  .countdown-number {
+    font-size: 28px;
+  }
+}
+
+/* Desktop: lebih besar */
+@media (min-width: 1200px) {
+  .countdown-unit {
+    min-width: 100px;
+    padding: 16px 12px;
+  }
+}
+
+/* ==========================================================
+   ZODIAC MATCH — SEMUA DEVICE
+   ========================================================== */
+
+.zodiac-circles {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.zodiac-circle-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.zodiac-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 391px) {
+  .zodiac-circle { width: 80px; height: 80px; font-size: 32px; }
+}
+
+@media (min-width: 768px) {
+  .zodiac-circle { width: 96px; height: 96px; font-size: 38px; }
+}
+
+.zodiac-connector {
+  font-size: 18px;
+  color: #EBC2C6;
+  flex-shrink: 0;
+}
+
+.zodiac-label {
+  font-size: var(--font-body);
+  font-weight: 600;
+  text-align: center;
+}
+
+.zodiac-sublabel {
+  font-size: var(--font-caption);
+  color: rgba(255,255,255,0.35);
+}
+
+/* Score ring */
+.zodiac-score-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 16px auto 0;
+  flex-shrink: 0;
+}
+
+@media (max-width: 390px) {
+  .zodiac-score-wrap { width: 140px; height: 140px; }
+}
+
+@media (min-width: 768px) {
+  .zodiac-score-wrap { width: 190px; height: 190px; }
+}
+
+.zodiac-score-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.zodiac-score-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.zodiac-score-number {
+  font-size: var(--stat-font);
+  font-weight: 900;
+  color: #EBC2C6;
+  line-height: 1;
+}
+
+/* Breakdown bars */
+.zodiac-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 390px) {
+  .zodiac-bars {
+    grid-template-columns: 1fr;  /* xs: stack vertikal */
+  }
+}
+
+.zodiac-bar-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.zodiac-bar-label {
+  font-size: var(--font-caption);
+  color: rgba(255,255,255,0.55);
+  min-width: 72px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 390px) {
+  .zodiac-bar-label { min-width: 64px; }
+}
+
+.zodiac-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.zodiac-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.zodiac-bar-value {
+  font-size: var(--font-caption);
+  font-weight: 600;
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ==========================================================
+   FOTO KITA — SEMUA DEVICE
+   ========================================================== */
+
+/* Tab pills */
+.photo-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  margin-bottom: 14px;
+}
+
+.photo-tabs::-webkit-scrollbar { display: none; }
+
+.photo-tab {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 60px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  transition: all 0.2s ease;
+}
+
+.photo-tab.active {
+  background: linear-gradient(135deg, #EBC2C6, #D6C2E8);
+  border-color: transparent;
+  color: #1A0A0C;
+  font-weight: 600;
+}
+
+/* Grid foto Naura (4 foto) — 2×2 */
+.photo-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--grid-gap);
+}
+
+.photo-grid-2x2 .photo-item {
+  aspect-ratio: 1 / 1;
+}
+
+/* Grid foto Farsya (3 foto) — 1 besar + 2 kecil */
+.photo-grid-farsya {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--grid-gap);
+}
+
+.photo-grid-farsya .photo-featured {
+  grid-column: 1 / -1;
+  aspect-ratio: 16 / 9;
+}
+
+.photo-grid-farsya .photo-small {
+  aspect-ratio: 1 / 1;
+}
+
+/* Grid foto Berdua (11 foto) — layout bervariasi */
+.photo-grid-berdua {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--grid-gap);
+}
+
+/* Pola layout 11 foto:
+   [0] full width featured
+   [1][2] 2 kolom
+   [3][4][5] — 3 kolom (override)
+   [6][7] 2 kolom
+   [8] full width featured
+   [9][10] 2 kolom
+*/
+
+.photo-item-full {
+  grid-column: 1 / -1;
+  aspect-ratio: 16 / 9;
+}
+
+.photo-item-sq {
+  aspect-ratio: 1 / 1;
+}
+
+/* Untuk baris 3 kolom, wrap dalam sub-grid */
+.photo-row-3 {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--grid-gap);
+}
+
+.photo-row-3 .photo-item-sq {
+  aspect-ratio: 1 / 1;
+}
+
+/* Base photo item */
+.photo-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  display: block;
+}
+
+.photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.photo-item:hover img,
+.photo-item:active img {
+  transform: scale(1.04);
+}
+
+/* Caption overlay */
+.photo-caption-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 10px 10px;
+  background: linear-gradient(to top, rgba(10,10,14,0.75), transparent);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.photo-item:hover .photo-caption-overlay {
+  opacity: 1;
+}
+
+.photo-caption-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Loading skeleton */
+.photo-skeleton {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 0%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* Desktop: grid berdua 3 kolom */
+@media (min-width: 768px) {
+  .photo-grid-berdua {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .photo-grid-berdua {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* LIGHTBOX */
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0,0,0,0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px var(--page-px);
+  box-sizing: border-box;
+}
+
+.lightbox-img {
+  max-width: min(90vw, 500px);
+  max-height: 75vh;
+  border-radius: 20px;
+  object-fit: contain;
+  object-position: center top;
+  display: block;
+}
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-nav-prev { left: 16px; }
+.lightbox-nav-next { right: 16px; }
+
+/* xs: nav lebih kecil */
+@media (max-width: 390px) {
+  .lightbox-nav { width: 36px; height: 36px; }
+  .lightbox-nav-prev { left: 8px; }
+  .lightbox-nav-next { right: 8px; }
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+}
+
+/* ==========================================================
+   MEMORY BOARD SCROLL — SEMUA DEVICE
+   ========================================================== */
+
+.memory-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  cursor: grab;
+}
+
+.memory-scroll:active { cursor: grabbing; }
+.memory-scroll::-webkit-scrollbar { display: none; }
+
+.memory-card {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  width: min(200px, 75vw);   /* xs: 75% lebar layar, max 200px */
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .memory-card { width: 220px; }
+}
+
+@media (min-width: 1200px) {
+  .memory-scroll {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    overflow-x: visible;
+    cursor: default;
+  }
+  .memory-card { width: 100%; }
+}
+
+/* Scroll dot indicator */
+.memory-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.memory-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.memory-dot.active {
+  background: #EBC2C6;
+  width: 14px;
+  border-radius: 3px;
+}
+
+/* Desktop: sembunyikan dots */
+@media (min-width: 1200px) {
+  .memory-dots { display: none; }
+}
+
+/* ==========================================================
+   TIMELINE KENANGAN — SEMUA DEVICE
+   ========================================================== */
+
+.timeline-entry {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: flex-start;
+  position: relative;
+  padding-left: 30px;
+}
+
+.timeline-entry:last-child { border-bottom: none; }
+
+.timeline-dot {
+  position: absolute;
+  left: 4px;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-month {
+  font-size: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 3px;
+}
+
+.timeline-title {
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: #F5F5F5;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-desc {
+  font-size: var(--font-caption);
+  color: rgba(255,255,255,0.45);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.timeline-thumb {
+  width: var(--timeline-img-w);
+  height: var(--timeline-img-h);
+  border-radius: 12px;
+  object-fit: cover;
+  object-position: center top;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
+
+/* xs: thumb lebih kecil */
+@media (max-width: 390px) {
+  .timeline-thumb {
+    width: 68px;
+    height: 68px;
+  }
+  .timeline-title {
+    max-width: 160px;
+  }
+}
+
+/* Desktop: foto lebih besar */
+@media (min-width: 768px) {
+  .timeline-thumb {
+    width: 110px;
+    height: 110px;
+  }
+}
+
+/* ==========================================================
+   FINAL MESSAGE — SEMUA DEVICE
+   ========================================================== */
+
+.final-section {
+  text-align: center;
+  padding: 32px var(--page-px) 16px;
+  box-sizing: border-box;
+}
+
+.final-title {
+  font-size: var(--font-h1);
+  font-weight: 800;
+  background: linear-gradient(135deg, #EBC2C6, #D6C2E8, #B7E3E0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.25;
+  margin-bottom: 20px;
+}
+
+.final-body {
+  font-size: var(--font-body);
+  color: rgba(255,255,255,0.5);
+  line-height: 1.9;
+  max-width: 320px;
+  margin: 0 auto 24px;
+}
+
+@media (min-width: 768px) {
+  .final-body { max-width: 440px; }
+}
+
+.final-signature {
+  font-size: var(--font-h3);
+  font-style: italic;
+  font-weight: 300;
+  color: #EBC2C6;
+  text-align: right;
+  max-width: 320px;
+  margin: 16px auto;
+}
+
+.final-stats-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  margin: 20px 0;
+  flex-wrap: nowrap;
+}
+
+.final-stat {
+  padding: 0 16px;
+  font-size: var(--font-body);
+  font-weight: 700;
+  color: #F5F5F5;
+  white-space: nowrap;
+}
+
+/* xs: lebih kecil */
+@media (max-width: 390px) {
+  .final-stat {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+
+.final-stat-sep {
+  color: rgba(255,255,255,0.2);
+  font-weight: 300;
+  flex-shrink: 0;
+}
+
+.final-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: nowrap;
+}
+
+.final-btn {
+  flex: 1;
+  max-width: 160px;
+  padding: var(--btn-padding);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.25s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* xs: tombol lebih kecil */
+@media (max-width: 390px) {
+  .final-btn {
+    max-width: 140px;
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+  .final-buttons {
+    gap: 8px;
+  }
+}
+
+.final-btn-outline {
+  background: transparent;
+  border: 1.5px solid rgba(235,194,198,0.35);
+  color: #EBC2C6;
+}
+
+.final-btn-fill {
+  background: linear-gradient(135deg, #EBC2C6, #D6C2E8);
+  color: #1A0A0C;
+}
+
+.final-footer {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  margin-top: 36px;
+}
+
+/* ==========================================================
+   BOTTOM NAV — MOBILE ONLY (hilang >= 768px)
+   ========================================================== */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+  background: rgba(10,10,14,0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding-top: 10px;
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Sembunyikan di tablet ke atas */
+@media (min-width: 768px) {
+  .bottom-nav { display: none; }
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 0 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.bottom-nav-label {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Tablet ke atas: sidebar nav vertikal */
+@media (min-width: 768px) {
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: sticky;
+    top: 24px;
+    padding: 20px 16px;
+    background: rgba(18,18,26,0.85);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.07);
+    width: 180px;
+    height: fit-content;
+  }
+}
+
+/* Desktop: dua kolom layout */
+@media (min-width: 1200px) {
+  .desktop-layout {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 24px;
+    align-items: start;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+}
+
+/* ==========================================================
+   GLOBAL OVERFLOW FIXES — WAJIB SEMUA DEVICE
+   ========================================================== */
+
+/* Cegah horizontal overflow global */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Semua element jangan overflow */
+* {
+  box-sizing: border-box;
+  min-width: 0;         /* WAJIB untuk flex/grid children */
+}
+
+/* Teks panjang */
+p, span, h1, h2, h3, h4, div {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Input tidak overflow */
+input, textarea, select {
+  max-width: 100%;
+}
+
+/* Image tidak stretch */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Fix safe area semua device modern */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+
+

@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default safety catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ID validation guard
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    // Schema validator for Mood log entity
+    function isValidMood(data) {
+      return data.userId is string 
+        && (data.userId == 'Nauraa' || data.userId == 'Farsya')
+        && data.dateStr is string && data.dateStr.size() <= 50
+        && data.displayDate is string && data.displayDate.size() <= 50
+        && data.time is string && data.time.size() <= 10
+        && data.mood is string && data.mood.size() <= 10
+        && data.label is string && data.label.size() <= 50
+        && data.color is string && data.color.size() <= 20
+        && data.note is string && data.note.size() <= 500
+        && data.createdAt is timestamp;
+    }
+
+    // Schema validator for ChatMessage entity
+    function isValidMessage(data) {
+      return data.userId is string 
+        && (data.userId == 'Nauraa' || data.userId == 'Farsya')
+        && data.text is string && data.text.size() <= 100000
+        && (data.voiceBase64 == null || (data.voiceBase64 is string && data.voiceBase64.size() <= 5000000))
+        && (data.voiceUrl == null || (data.voiceUrl is string && data.voiceUrl.size() <= 2048))
+        && (data.voiceDuration == null || data.voiceDuration is int)
+        && data.createdAt is timestamp;
+    }
+
+    // Schema validator for SecuritySettings entity
+    function isValidSecuritySettings(data) {
+      return data.pinHash is string && data.pinHash.size() == 64
+        && (data.updatedAt == null || data.updatedAt is timestamp);
+    }
+
+    // Match patterns with validation mapping
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    match /moods/{moodId} {
+      allow read, list: if true;
+      allow create, update: if isValidId(moodId) && isValidMood(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /messages/{messageId} {
+      allow read, list: if true;
+      allow create: if isValidId(messageId) && isValidMessage(request.resource.data);
+      allow update: if false; // Messages are immutable
+      allow delete: if false;
+    }
+  }
+}
