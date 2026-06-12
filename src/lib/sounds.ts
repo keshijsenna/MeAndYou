@@ -3,6 +3,15 @@ import { useAppStore } from './store';
 
 // Helper to use Web Audio API directly for some synthesized sounds
 const playTone = (frequency: number, durationMs: number = 80, type: OscillatorType = 'sine', volume: number = 0.25) => {
+  // Haptic feedback
+  try {
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(Math.min(durationMs, 50));
+    }
+  } catch (e) {
+    // Ignore if not supported / allowed 
+  }
+
   if (useAppStore.getState().audioState.muted) return;
   try {
     const audioCtx = Howler.ctx;

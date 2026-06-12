@@ -7,9 +7,9 @@ import { sounds } from '../../lib/sounds';
 import { useAppStore } from '../../lib/store';
 import { GlassCard } from '../GlassCard';
 
-const DATE_JADIAN = new Date('2026-03-24T00:00:00');
-const DATE_1_BULAN = new Date('2026-04-24T00:00:00');
-const DATE_1_TAHUN = new Date('2027-03-24T00:00:00');
+const DATE_JADIAN = new Date('2026-04-24T00:00:00');
+const DATE_1_BULAN = new Date('2026-05-24T00:00:00');
+const DATE_1_TAHUN = new Date('2027-04-24T00:00:00');
 
 const CountdownUnit = ({ value, label }: { value: number, label: string }) => (
   <div className="flex flex-col items-center mx-1 min-w-[48px]">

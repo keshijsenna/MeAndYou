@@ -2,16 +2,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #0A0A0E;
-  --color-bg-secondary: #111118;
-  --color-bg-card: rgba(25, 25, 40, 0.4);
-  --color-accent-pink: #EBC2C6;
-  --color-accent-mint: #B7E3E0;
-  --color-accent-lavender: #D6C2E8;
-  --color-accent-gold: #E8D5A3;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #9A9AB0;
-  --color-text-muted: #5A5A70;
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-card: var(--bg-card);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-mint: var(--accent-mint);
+  --color-accent-lavender: var(--accent-lavender);
+  --color-accent-gold: var(--accent-gold);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
   
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }

@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation helpers
+    function isValidMessage(data) {
+      return data.keys().hasAll(['userId', 'text', 'createdAt']) &&
+             data.userId is string && data.text is string &&
+             (data.voiceUrl == null || data.voiceUrl is string);
+    }
+
+    function isValidMood(data) {
+      return data.keys().hasAll(['userId', 'dateStr', 'mood', 'createdAt']) &&
+             data.userId is string && data.dateStr is string && data.mood is string;
+    }
+
+    function isValidDream(data) {
+      return data.keys().hasAll(['text', 'done']) &&
+             data.text is string && data.done is bool;
+    }
+
+    function isValidSchedule(data) {
+      return data.keys().hasAll(['date', 'title']) &&
+             data.date is string && data.title is string;
+    }
+
+    function isValidPhoto(data) {
+      return data.keys().hasAll(['url']) &&
+             data.url is string;
+    }
+
+    function isValidMemory(data) {
+      return data.keys().hasAll(['title', 'date']) &&
+             data.title is string && data.date is string;
+    }
+
+    function isValidLoveLetter(data) {
+      return data.keys().hasAll(['content', 'userId']) &&
+             data.content is string && data.userId is string;
+    }
+
+    // Collections
+    match /messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidMessage(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /moods/{moodId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidMood(incoming());
+    }
+
+    match /dreams/{dreamId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidDream(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidSchedule(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /love_letters/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidLoveLetter(incoming());
+    }
+
+    match /photos/{photoId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidPhoto(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /memories/{memoryId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidMemory(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /settings/appLock {
+      allow read: if true; // Allow initial check
+      allow write: if isSignedIn();
+    }
+  }
+}

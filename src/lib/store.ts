@@ -33,6 +33,8 @@ export interface AppState {
     nauraNextBirthday: Date;
     farsyaNextBirthday: Date;
   };
+  profileActiveTab: string;
+  setProfileActiveTab: (tab: string) => void;
   goToSection: (n: number) => void;
   goToNext: () => void;
   unlockSection: (n: number) => void;
@@ -61,10 +63,12 @@ export const useAppStore = create<AppState>((set) => ({
   },
   profileData: {
     daysTogether: 0,
-    nextAnniversary: new Date('2026-03-24T00:00:00'),
+    nextAnniversary: new Date('2026-04-24T00:00:00'),
     nauraNextBirthday: new Date('2026-03-16T00:00:00'),
     farsyaNextBirthday: new Date('2026-01-17T00:00:00'),
   },
+  profileActiveTab: 'hero',
+  setProfileActiveTab: (tab) => set({ profileActiveTab: tab }),
   goToSection: (n) =>
     set((state) => ({
       currentSection: state.unlockedSections.includes(n) ? n : state.currentSection,

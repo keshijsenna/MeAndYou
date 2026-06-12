@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { differenceInDays } from 'date-fns';
 import { Heart, Play, Music, LogOut, SkipForward } from 'lucide-react';
 import { useAppStore } from '../lib/store';
@@ -9,6 +9,48 @@ import { ImageWithFallback } from './ImageWithFallback';
 import { useAudioManager } from '../lib/useAudioManager';
 import { PinLockScreen } from './PinLockScreen';
 import { sounds } from '../lib/sounds';
+
+function MicPromptModal({ onDone }: { onDone: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+      <div className="bg-[#1A0A0C] border border-[#EBC2C6]/30 p-8 rounded-[32px] max-w-sm w-full text-center shadow-2xl flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-300">
+        <div className="w-16 h-16 rounded-full bg-[#EBC2C6]/10 flex items-center justify-center text-[#EBC2C6]">
+          <Music className="w-8 h-8" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-bold text-white tracking-tight">Izin Mikrofon</h2>
+          <p className="text-sm text-balance text-[#9A9AB0]">
+            Untuk fitur Voice Note, pastikan kamu memberikan akses Mikrofon di browser.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 w-full">
+          <button
+            onClick={async () => {
+              try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                  stream.getTracks().forEach(t => t.stop());
+                }
+              } catch (e) {
+                console.warn(e);
+              }
+              onDone();
+            }}
+            className="w-full bg-gradient-to-r from-[#EBC2C6] to-[#D6C2E8] text-[#1A0A0C] font-bold py-3 px-6 rounded-full hover:opacity-90 transition-opacity"
+          >
+            Aktifkan Mikrofon
+          </button>
+          <button
+            onClick={onDone}
+            className="w-full bg-white/5 text-white/50 font-semibold py-3 px-6 rounded-full hover:bg-white/10 transition-colors"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // import sections
 import { S01_PasswordGate } from './sections/S01_PasswordGate';
@@ -68,23 +110,60 @@ const NoSection = () => (
 );
 
 export const AppShell: React.FC = () => {
-  useAudioManager();
-  
   const [isLocked, setIsLocked] = useState(true);
+  const [showMicPrompt, setShowMicPrompt] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const currentSection = useAppStore(state => state.currentSection);
   const unlockedSections = useAppStore(state => state.unlockedSections);
   const audioState = useAppStore(state => state.audioState);
   const toggleMuteStore = useAppStore(state => state.toggleMute);
   const goToNext = useAppStore(state => state.goToNext);
+  const profileActiveTab = useAppStore(state => state.profileActiveTab);
+  
+  useEffect(() => {
+    if (sessionStorage.getItem('mic_prompt_done')) return;
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as any }).then(status => {
+        if (status.state === 'prompt' || status.state === 'denied') {
+          setShowMicPrompt(true);
+        }
+      }).catch(() => setShowMicPrompt(true));
+    } else {
+      setShowMicPrompt(true);
+    }
+  }, []);
+  
+  const handleMicDone = () => {
+    sessionStorage.setItem('mic_prompt_done', 'true');
+    setShowMicPrompt(false);
+  };
   
   const isMuted = audioState.muted;
   const toggleMute = () => {
     toggleMuteStore();
     import('../lib/sounds').then(m => m.updateGlobalMute(!isMuted));
+    
+    if (audioRef.current) {
+       if (isMuted) {
+         audioRef.current.play().catch(e => console.log('Autoplay prevent:', e));
+       } else {
+         audioRef.current.pause();
+       }
+    }
   };
+
+  useEffect(() => {
+    if (audioRef.current) {
+      if (!isMuted) {
+         audioRef.current.play().catch(e => console.log('Autoplay prevent:', e));
+      } else {
+         audioRef.current.pause();
+      }
+    }
+  }, [isMuted]);
   
-  const START_DATE = new Date('2026-03-24T00:00:00');
+  const START_DATE = new Date('2026-04-24T00:00:00');
   const daysTogether = Math.max(0, differenceInDays(new Date(), START_DATE));
 
   const renderSection = () => {
@@ -120,10 +199,14 @@ export const AppShell: React.FC = () => {
   return (
     <div className="w-full h-screen overflow-hidden relative flex flex-col font-sans text-white select-none bg-[#0A0A0E]">
       <GlobalBackground turboMode={false} />
+      <audio ref={audioRef} loop src="https://files.catbox.moe/u6yxyy.mp3" className="hidden" />
       
       <AnimatePresence>
         {isLocked && (
-          <PinLockScreen onUnlock={() => setIsLocked(false)} />
+          <PinLockScreen key="lock-screen" onUnlock={() => setIsLocked(false)} />
+        )}
+        {showMicPrompt && (
+          <MicPromptModal key="mic-prompt" onDone={handleMicDone} />
         )}
       </AnimatePresence>
       
@@ -159,7 +242,7 @@ export const AppShell: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="relative z-50 flex justify-between items-center px-6 lg:px-10 py-6">
+      <header className="relative z-[60] flex justify-between items-center px-6 lg:px-10 py-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#EBC2C6] to-[#D6C2E8] flex items-center justify-center shadow-lg">
             <Heart className="w-6 h-6 text-[#1A0A0C]" fill="currentColor" />
@@ -169,7 +252,7 @@ export const AppShell: React.FC = () => {
             <span className="text-lg font-bold tracking-tight text-white">Nauraa & Farsya</span>
           </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 ml-auto">
           {currentSection < 22 && (
             <div className="hidden sm:flex gap-2">
               <div className="px-3 py-1 rounded-full border border-[#EBC2C6]/30 bg-[#EBC2C6]/10 text-[#EBC2C6] text-[11px] font-semibold tracking-wider">ONLINE</div>

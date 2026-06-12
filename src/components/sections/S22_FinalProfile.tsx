@@ -4,10 +4,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useSpring, useTransform, useMotionValue, useInView } from 'framer-motion';
 import { 
-  Heart, Calendar, Star, Trophy, Crown, Gift, Moon, Music, Leaf, Share2, 
+  Heart, Calendar, Star, Trophy, Crown, Gift, Moon, Music, Leaf, Share2, MapPin,
   Expand, X, Check, Clock, Puzzle, ChevronLeft, ChevronRight, CheckCircle2, Image as ImageIcon,
   ZoomIn, ZoomOut, RotateCcw, ArrowLeft, Compass, Camera,
-  Mic, Send, Volume2, Play, Pause, Trash2, ShieldAlert, Sparkles, Wifi, WifiOff
+  Mic, Send, Volume2, Play, Pause, Trash2, ShieldAlert, Sparkles, Wifi, WifiOff,
+  MessageSquare, Facebook, Copy, ExternalLink, Settings, Download, Layout, Bell, Smile
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store';
 import { sounds } from '../../lib/sounds';
@@ -18,8 +19,22 @@ import {
   logMood, 
   isFirebaseLive,
   clearLocalMoods,
-  uploadVoiceNoteToStorage 
+  uploadVoiceNoteToStorage,
+  syncDreams,
+  addDream,
+  toggleDream,
+  syncSchedules,
+  addSchedule,
+  syncLoveLetter,
+  saveLoveLetter,
+  syncMemories,
+  addMemory,
+  syncPhotos,
+  addPhoto,
+  deleteDream,
+  db
 } from '../../lib/firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 // ----------------------------------------------------------------------
 // LIGHTBOX CONTEXT FOR PAGE-WIDE GALLERY ACTION
@@ -121,25 +136,176 @@ const FARSYA = {
 };
 
 const RELATIONSHIP = {
-  startDate: new Date("2026-03-24T00:00:00"),
+  startDate: new Date("2026-04-24T00:00:00"),
   firstSong: "Last Night On Earth — Green Day",
   firstSongUrl: "https://open.spotify.com/track/5TpPSTItCwtZ8Sltr3vdzm",
   firstPromise: "Chat tengah malam",
-  password: "24526",
+  password: "24426",
   milestones: [
-    { date: new Date("2026-03-24"), label: "Hari Jadian",       icon: "heart",    color: "#EBC2C6" },
-    { date: new Date("2026-04-24"), label: "1 Bulan",           icon: "calendar", color: "#D6C2E8" },
-    { date: new Date("2026-06-24"), label: "3 Bulan",           icon: "star",     color: "#B7E3E0" },
-    { date: new Date("2026-09-24"), label: "6 Bulan",           icon: "trophy",   color: "#E8D5A3" },
-    { date: new Date("2027-03-24"), label: "1 Tahun",           icon: "crown",    color: "#EBC2C6" },
+    { date: new Date("2026-04-24"), label: "Hari Jadian",       icon: "heart",    color: "#EBC2C6" },
+    { date: new Date("2026-05-24"), label: "1 Bulan",           icon: "calendar", color: "#D6C2E8" },
+    { date: new Date("2026-07-24"), label: "3 Bulan",           icon: "star",     color: "#B7E3E0" },
+    { date: new Date("2026-10-24"), label: "6 Bulan",           icon: "trophy",   color: "#E8D5A3" },
+    { date: new Date("2027-04-24"), label: "1 Tahun",           icon: "crown",    color: "#E92A60" },
     { date: new Date("2027-03-16"), label: "Ultah Nauraa ke-19", icon: "gift",     color: "#EBC2C6" },
     { date: new Date("2027-01-17"), label: "Ultah Farsya ke-20",icon: "gift",     color: "#D6C2E8" },
   ]
 };
 
+const getIndonesianMonthYear = (baseDate: Date, offsetMonths: number) => {
+  const d = new Date(baseDate.getTime());
+  d.setMonth(d.getMonth() + offsetMonths);
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+const getMilestones = (annivDate: Date) => {
+  const dJadian = new Date(annivDate.getTime());
+  
+  const d1M = new Date(annivDate.getTime());
+  d1M.setMonth(d1M.getMonth() + 1);
+  
+  const d3M = new Date(annivDate.getTime());
+  d3M.setMonth(d3M.getMonth() + 3);
+  
+  const d6M = new Date(annivDate.getTime());
+  d6M.setMonth(d6M.getMonth() + 6);
+  
+  const d1Y = new Date(annivDate.getTime());
+  d1Y.setFullYear(d1Y.getFullYear() + 1);
+
+  const dNauraa19 = new Date("2027-03-16T00:00:00");
+  const dFarsya20 = new Date("2027-01-17T00:00:00");
+
+  return [
+    { date: dJadian, label: "Hari Jadian",       icon: "heart",    color: "#EBC2C6" },
+    { date: d1M, label: "1 Bulan",           icon: "calendar", color: "#D6C2E8" },
+    { date: d3M, label: "3 Bulan",           icon: "star",     color: "#B7E3E0" },
+    { date: d6M, label: "6 Bulan",           icon: "trophy",   color: "#E8D5A3" },
+    { date: d1Y, label: "1 Tahun",           icon: "crown",    color: "#EBC2C6" },
+    { date: dNauraa19, label: "Ultah Nauraa ke-19", icon: "gift",     color: "#EBC2C6" },
+    { date: dFarsya20, label: "Ultah Farsya ke-20",icon: "gift",     color: "#D6C2E8" },
+  ];
+};
+
+const getDynamicMemories = (annivDate: Date) => {
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  
+  const dJadian = new Date(annivDate.getTime());
+  const dateStr0 = `${dJadian.getDate()} ${months[dJadian.getMonth()]} ${dJadian.getFullYear()}`;
+  
+  const dSayang = new Date(annivDate.getTime());
+  const dateStr1 = `${months[dSayang.getMonth()]} ${dSayang.getFullYear()}`;
+  
+  const dMonth1 = new Date(annivDate.getTime());
+  dMonth1.setMonth(dMonth1.getMonth() + 1);
+  const dateStr2 = `${dMonth1.getDate()} ${months[dMonth1.getMonth()]} ${dMonth1.getFullYear()}`;
+
+  const dPromise = new Date(annivDate.getTime());
+  const dateStr3 = `${months[dPromise.getMonth()]} ${dPromise.getFullYear()}`;
+
+  return [
+    {
+      id: 1, icon: "moon", color: "#D6C2E8", title: "Chat Tengah Malam", date: dateStr0,
+      description: "Kata-kata yang mengalir jujur di tengah malam — awal dari segalanya.",
+    },
+    {
+      id: 2, icon: "music", color: "#EBC2C6", title: "Last Night On Earth", date: "Hari-hari pertama",
+      description: "Green Day menemani momen terdiam yang paling bermakna.",
+    },
+    {
+      id: 3, icon: "heart", color: "#F0A0B0", title: "Pertama Bilang Sayang", date: dateStr1,
+      description: "Farsya memberanikan diri — dan dunia terasa berubah seketika.",
+    },
+    {
+      id: 4, icon: "star", color: "#E8D5A3", title: "Satu Bulan", date: dateStr2,
+      description: "Satu bulan yang mengajarkan banyak tentang arti hadir.",
+    },
+    {
+      id: 5, icon: "leaf", color: "#B7E3E0", title: "Janji Pertama", date: dateStr3,
+      description: "Bukan di tempat mewah, tapi di percakapan yang paling tulus.",
+    },
+  ];
+};
+
+const THEMES = [
+  {
+    id: 'amour',
+    name: 'Classic Amour 🌸',
+    desc: 'Pink romantis & ungu lavender lembut.',
+    vars: {
+      '--bg-primary': '#0A0A0E',
+      '--bg-secondary': '#111118',
+      '--accent-pink': '#EBC2C6',
+      '--accent-mint': '#B7E3E0',
+      '--accent-lavender': '#D6C2E8',
+      '--accent-gold': '#E8D5A3',
+      '--border-glass': 'rgba(232,180,184,0.25)',
+      '--border-active': 'rgba(232,180,184,0.6)',
+      '--gradient-btn': 'linear-gradient(90deg, #EBC2C6 0%, #D6C2E8 100%)',
+      '--gradient-card': 'linear-gradient(145deg, rgba(235,194,198,0.08) 0%, rgba(214,194,232,0.05) 100%)',
+    },
+    colors: ['#EBC2C6', '#D6C2E8', '#0A0A0E']
+  },
+  {
+    id: 'cosmic',
+    name: 'Cosmic Sunset 🌌',
+    desc: 'Lembayung ungu malam & coral membara.',
+    vars: {
+      '--bg-primary': '#0E0816',
+      '--bg-secondary': '#160E25',
+      '--accent-pink': '#FF6B8B',
+      '--accent-mint': '#34D399',
+      '--accent-lavender': '#A78BFA',
+      '--accent-gold': '#FBBF24',
+      '--border-glass': 'rgba(255,107,139,0.25)',
+      '--border-active': 'rgba(255,107,139,0.6)',
+      '--gradient-btn': 'linear-gradient(90deg, #FF6B8B 0%, #A78BFA 100%)',
+      '--gradient-card': 'linear-gradient(145deg, rgba(255,107,139,0.08) 0%, rgba(167,139,250,0.05) 100%)',
+    },
+    colors: ['#FF6B8B', '#A78BFA', '#0E0816']
+  },
+  {
+    id: 'sakura',
+    name: 'Sweet Sakura 💮',
+    desc: 'Taman bunga sakura Jepang yang indah.',
+    vars: {
+      '--bg-primary': '#0C0409',
+      '--bg-secondary': '#180B14',
+      '--accent-pink': '#FFA6C9',
+      '--accent-mint': '#A7F3D0',
+      '--accent-lavender': '#F3E8FF',
+      '--accent-gold': '#FCD34D',
+      '--border-glass': 'rgba(255,166,201,0.25)',
+      '--border-active': 'rgba(255,166,201,0.6)',
+      '--gradient-btn': 'linear-gradient(90deg, #FFA6C9 0%, #F3E8FF 100%)',
+      '--gradient-card': 'linear-gradient(145deg, rgba(255,166,201,0.08) 0%, rgba(243,232,255,0.05) 100%)',
+    },
+    colors: ['#FFA6C9', '#FCD34D', '#0C0409']
+  },
+  {
+    id: 'cocoa',
+    name: 'Warm Cocoa 🧸',
+    desc: 'Suasana kedai kopi klasik hangat & intim.',
+    vars: {
+      '--bg-primary': '#140D0B',
+      '--bg-secondary': '#1D1412',
+      '--accent-pink': '#E07A5F',
+      '--accent-mint': '#A3B19B',
+      '--accent-lavender': '#F4F1DE',
+      '--accent-gold': '#F2CC8F',
+      '--border-glass': 'rgba(224,122,95,0.25)',
+      '--border-active': 'rgba(224,122,95,0.6)',
+      '--gradient-btn': 'linear-gradient(90deg, #E07A5F 0%, #F4F1DE 100%)',
+      '--gradient-card': 'linear-gradient(145deg, rgba(224,122,95,0.08) 0%, rgba(244,241,222,0.05) 100%)',
+    },
+    colors: ['#E07A5F', '#F2CC8F', '#140D0B']
+  }
+];
+
 const MEMORIES = [
   {
-    id: 1, icon: "moon", color: "#D6C2E8", title: "Chat Tengah Malam", date: "24 Maret 2026",
+    id: 1, icon: "moon", color: "#D6C2E8", title: "Chat Tengah Malam", date: "24 April 2026",
     description: "Kata-kata yang mengalir jujur di tengah malam — awal dari segalanya.",
   },
   {
@@ -147,15 +313,15 @@ const MEMORIES = [
     description: "Green Day menemani momen terdiam yang paling bermakna.",
   },
   {
-    id: 3, icon: "heart", color: "#F0A0B0", title: "Pertama Bilang Sayang", date: "Maret 2026",
+    id: 3, icon: "heart", color: "#F0A0B0", title: "Pertama Bilang Sayang", date: "April 2026",
     description: "Farsya memberanikan diri — dan dunia terasa berubah seketika.",
   },
   {
-    id: 4, icon: "star", color: "#E8D5A3", title: "Satu Bulan", date: "24 April 2026",
+    id: 4, icon: "star", color: "#E8D5A3", title: "Satu Bulan", date: "24 Mei 2026",
     description: "Satu bulan yang mengajarkan banyak tentang arti hadir.",
   },
   {
-    id: 5, icon: "leaf", color: "#B7E3E0", title: "Janji Pertama", date: "Maret 2026",
+    id: 5, icon: "leaf", color: "#B7E3E0", title: "Janji Pertama", date: "April 2026",
     description: "Bukan di tempat mewah, tapi di percakapan yang paling tulus.",
   },
 ];
@@ -276,15 +442,107 @@ const Photo = ({ src, eager = false, className = '', onClick }: any) => {
   );
 };
 
-const GlassCard = ({ children, className = '' }: any) => (
-  <div className={`glass-card ${className}`}>
-    {children}
-  </div>
-);
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.05
+    }
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    transition: { duration: 0.15 }
+  }
+};
+
+const cardVariants: any = {
+  hidden: { opacity: 0, y: 15 },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring", 
+      stiffness: 110, 
+      damping: 17
+    } 
+  }
+};
+
+const GlassCard = ({ children, className = '', onClick, delayIndex = 0 }: any) => {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    setRevealed(false);
+    const raf = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        setRevealed(true);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [delayIndex]);
+
+  return (
+    <div 
+      className={`glass-card transition-all duration-[750ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        revealed ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-[0.98]'
+      } ${className}`}
+      style={{
+        transitionDelay: `${delayIndex * 80}ms`
+      }}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  );
+};
+
+const DailyAffirmation = ({ delayIndex = 0 }: { delayIndex?: number }) => {
+  const [quote, setQuote] = useState<string>("Mengambil kutipan harian...");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQuote = async () => {
+      try {
+        const res = await fetch("/api/affirmation");
+        const data = await res.json();
+        if (data.quote) {
+           setQuote(data.quote);
+        } else {
+           setQuote("Setiap hari bersamamu adalah sebuah petualangan yang tak terlupakan.");
+        }
+      } catch (err) {
+        setQuote("Cinta yang tulus mengalahkan segalanya, hari demi hari.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuote();
+  }, []);
+
+  return (
+    <GlassCard delayIndex={delayIndex} className="p-4 border border-[#EBC2C6]/20 bg-gradient-to-r from-pink-500/5 to-[#D6C2E8]/5 relative overflow-hidden">
+      <div className="absolute top-0 right-0 -mr-4 -mt-4 opacity-10">
+         <Sparkles size={60} className="text-[#EBC2C6]" />
+      </div>
+      <div className="flex flex-col gap-2 relative z-10 text-center items-center justify-center">
+         <span className="text-[10px] font-bold tracking-widest text-[#EBC2C6] uppercase flex items-center gap-1.5 mx-auto">
+            <Sparkles size={12} /> Daily Affirmation
+         </span>
+         {loading ? (
+            <p className="text-[13px] font-medium text-white/50 italic animate-pulse py-2">Mendengarkan angin cinta...</p>
+         ) : (
+            <p className="text-[14px] font-medium text-white/90 leading-relaxed italic px-2">"{quote}"</p>
+         )}
+      </div>
+    </GlassCard>
+  );
+};
 
 // 1. HeroCouple
-const HeroCouple = ({ now }: { now: Date }) => {
-  const diffTime = now.getTime() - RELATIONSHIP.startDate.getTime();
+const HeroCouple = ({ now, anniversaryDate, onDateChange }: { now: Date, anniversaryDate: Date, onDateChange: (d: string) => void }) => {
+  const diffTime = Math.max(0, now.getTime() - anniversaryDate.getTime());
   const d = Math.floor(diffTime / 86400000);
   const h = Math.floor((diffTime % 86400000) / 3600000);
   const m = Math.floor((diffTime % 3600000) / 60000);
@@ -338,7 +596,7 @@ const HeroCouple = ({ now }: { now: Date }) => {
         Nauraa & Farsya
       </motion.div>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="hero-date">
-        Bersama sejak 24 Maret 2026
+        Bersama sejak <input type="date" value={anniversaryDate.toISOString().split('T')[0]} onChange={(e) => onDateChange(e.target.value)} className="bg-transparent border-b border-[#EBC2C6]/30 text-[#EBC2C6] font-mono cursor-pointer hover:border-[#EBC2C6] transition-colors outline-none" />
       </motion.div>
       <div className="hero-counter">
         {[ { v: d, l: 'HARI' }, { v: h, l: 'JAM' }, { v: m, l: 'MNT' }, { v: s, l: 'DTK' } ].map((item, idx) => (
@@ -357,11 +615,48 @@ const HeroCouple = ({ now }: { now: Date }) => {
 };
 
 // 2. StreakCounter
-const StreakCounter = ({ now }: { now: Date }) => {
-  const days = Math.floor((now.getTime() - RELATIONSHIP.startDate.getTime()) / 86400000);
+const StreakCounter = ({ now, anniversaryDate, delayIndex = 0 }: { now: Date, anniversaryDate: Date, delayIndex?: number }) => {
+  const days = Math.floor((now.getTime() - anniversaryDate.getTime()) / 86400000);
   const mv = useMotionValue(0);
   const ms = useSpring(mv, { stiffness: 80, damping: 15 });
   const [disp, setDisp] = useState(0);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sharedTextCopied, setSharedTextCopied] = useState(false);
+
+  const getShareText = () => {
+    const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://ais-pre-f3yp2zgdgemtlzogz5uyz4-974043428757.asia-southeast1.run.app';
+    return `💖 Nauraa & Farsya - Love Journey 💖\n\n` +
+           `✨ Hari ke-${days} Bersama!\n` +
+           `🔥 Streak Aktif: ${days} Hari Berturut-turut.\n` +
+           `💕 Misi Petualangan: Hubungan kami penuh dengan tantangan romantis berdua.\n\n` +
+           `Intip situs cinta kami bersama di sini: ${appUrl} 🌸✨`;
+  };
+
+  const handleShare = async () => {
+    const text = getShareText();
+    const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://ais-pre-f3yp2zgdgemtlzogz5uyz4-974043428757.asia-southeast1.run.app';
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Love Journey Nauraa & Farsya',
+          text: `Kami sudah bersama selama ${days} hari! 💕`,
+          url: appUrl,
+        });
+        sounds.successSound();
+      } catch (err) {
+        console.warn(err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        sounds.successSound();
+        setSharedTextCopied(true);
+        setTimeout(() => setSharedTextCopied(false), 3000);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  };
 
   useEffect(() => { mv.set(days); }, [days, mv]);
   useEffect(() => { const sub = ms.on('change', v => setDisp(Math.floor(v))); return sub; }, [ms]);
@@ -370,7 +665,7 @@ const StreakCounter = ({ now }: { now: Date }) => {
   const rem = 30 - (days % 30);
 
   return (
-    <GlassCard className="relative overflow-hidden">
+    <GlassCard delayIndex={delayIndex} className="relative overflow-hidden">
       <div className="flex justify-between items-center mb-4 relative z-10">
         <span className="text-[14px] font-semibold">Streak Bersama</span>
         <div className="flex items-center gap-1.5 bg-[#B7E3E0]/20 px-2 py-0.5 rounded-full text-[#B7E3E0] text-[10px] font-bold">
@@ -416,12 +711,161 @@ const StreakCounter = ({ now }: { now: Date }) => {
           );
         })}
       </div>
+
+      <div className="mt-5 pt-3 border-t border-white/5 flex justify-center">
+        <button
+          onClick={() => {
+            sounds.sparkleChime();
+            setShowShareModal(true);
+          }}
+          className="flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 border border-pink-500/20 hover:border-pink-500/40 rounded-full text-[11px] font-bold text-[#EBC2C6] tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(235,194,198,0.1)] active:scale-95 cursor-pointer"
+        >
+          <Share2 size={12} />
+          <span>Bagikan Kisah Kita ✨</span>
+        </button>
+      </div>
+
+      {/* Share Modal Dialog Overlay */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm bg-[#111118] border border-white/10 rounded-[28px] overflow-hidden p-6 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                sounds.clickSound();
+                setShowShareModal(false);
+              }}
+              className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-full transition-colors cursor-pointer"
+            >
+              <X size={15} />
+            </button>
+
+            <h3 className="text-[16px] font-bold text-center mb-1">Bagikan Kisah Cinta Kita</h3>
+            <p className="text-[11px] text-[#9A9AB0] text-center mb-5">Pamerkan milestone indah hubungan kalian di media sosial.</p>
+
+            {/* Shareable Card Preview */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-pink-500/20 via-purple-500/10 to-[#0A0A0E] border border-pink-500/20 text-center relative overflow-hidden mb-5 aspect-[4/5] flex flex-col justify-between shadow-[0_0_25px_rgba(235,194,198,0.15)]">
+              <div className="absolute top-0 right-0 p-4 opacity-[0.03]">
+                <Heart size={150} className="fill-white" />
+              </div>
+
+              <div className="flex justify-between items-center z-10 w-full mb-2">
+                <span className="text-[9px] font-bold text-white/40 tracking-[3px] uppercase">Love Journey Card</span>
+                <span className="text-[9px] font-mono font-bold bg-[#EBC2C6]/20 text-[#EBC2C6] border border-[#EBC2C6]/30 px-2 py-0.5 rounded-full">ACTIVE</span>
+              </div>
+
+              <div className="flex flex-col items-center gap-1.5 z-10 my-auto">
+                <div className="flex -space-x-3 mb-2">
+                  <div className="w-10 h-10 rounded-full border-2 border-[#EBC2C6] overflow-hidden bg-gray-800">
+                    <img src="https://files.catbox.moe/jw0yc8.jpg" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="w-10 h-10 rounded-full border-2 border-[#D6C2E8] overflow-hidden bg-gray-800">
+                    <img src="https://files.catbox.moe/tz9k37.jpg" className="w-full h-full object-cover" />
+                  </div>
+                </div>
+                
+                <h4 className="text-lg font-black text-white leading-tight">Nauraa & Farsya</h4>
+                <div className="text-[10px] text-[#EBC2C6] font-mono tracking-wider uppercase">
+                  Bersama sejak {anniversaryDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+
+                <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#EBC2C6] to-[#D6C2E8] mt-4 leading-none">
+                  {days} HARI
+                </div>
+                <div className="text-[11px] text-[#9A9AB0] font-medium uppercase tracking-[2px] mt-1">Telah Kita Lahui 💕</div>
+              </div>
+
+              <div className="flex justify-center items-center gap-1 text-[9px] text-white/30 z-10 border-t border-white/5 pt-3">
+                 <Sparkles size={8} className="text-yellow-300" />
+                 <span>Terhubung di Lembah Cinta Abadi</span>
+              </div>
+            </div>
+
+            {/* Social Sharing Selection Buttons */}
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] uppercase tracking-wider text-[#9A9AB0] font-bold block text-center mb-1">
+                Pilih Media Sosial
+              </span>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {/* WhatsApp button */}
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(getShareText())}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => sounds.successSound()}
+                  className="p-2.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-300 hover:text-emerald-200 transition-all text-center flex items-center justify-center gap-1.5 text-xs font-bold"
+                >
+                  <MessageSquare size={13} />
+                  <span>WhatsApp</span>
+                </a>
+
+                {/* Twitter / X button */}
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText())}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => sounds.successSound()}
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all text-center flex items-center justify-center gap-1.5 text-xs font-bold"
+                >
+                  <ExternalLink size={13} />
+                  <span>Twitter / X</span>
+                </a>
+
+                {/* Facebook button */}
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://ais-pre-f3yp2zgdgemtlzogz5uyz4-974043428757.asia-southeast1.run.app')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => sounds.successSound()}
+                  className="p-2.5 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 text-blue-300 hover:text-blue-200 transition-all text-center flex items-center justify-center gap-1.5 text-xs font-bold"
+                >
+                  <Facebook size={13} />
+                  <span>Facebook</span>
+                </a>
+
+                {/* Copy Text button */}
+                <button
+                  onClick={handleShare}
+                  className="p-2.5 rounded-xl bg-[#EBC2C6]/15 hover:bg-[#EBC2C6]/25 border border-[#EBC2C6]/30 text-[#EBC2C6] hover:text-[#f3d4d7] transition-all text-center flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer"
+                >
+                  <Copy size={13} />
+                  <span>Salin Cerita</span>
+                </button>
+              </div>
+
+              {sharedTextCopied && (
+                <div className="text-center text-[10px] text-green-400 font-bold animate-pulse">
+                  ✓ Berhasil menyalin cerita cinta ke clipboard!
+                </div>
+              )}
+
+              {/* Instagram Sharing Instructions Card */}
+              <div className="p-3 rounded-2xl bg-gradient-to-tr from-pink-500/10 via-purple-500/5 to-[#111118]/20 border border-pink-500/10 text-[10px] leading-relaxed text-[#9A9AB0]">
+                <div className="flex items-center gap-1 text-[#EBC2C6] font-bold mb-1.5">
+                  <span className="text-xs">📸</span>
+                  <span>Cara Bagikan ke Instagram Stories:</span>
+                </div>
+                <ol className="list-decimal pl-3.5 space-y-0.5 text-white/70">
+                  <li>Screenshot atau simpan Kartu Cinta di atas</li>
+                  <li>Buka Instagram Stories, pilih hasil screenshot</li>
+                  <li>Tempel / paste caption kisah cinta yang sudah kamu salin! 💕</li>
+                </ol>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </GlassCard>
   );
 };
 
 // 3. ProfileCards
-const ProfileCards = ({ now }: { now: Date }) => {
+const ProfileCards = ({ now, delayIndex = 0 }: { now: Date, delayIndex?: number }) => {
   const [tab, setTab] = useState<'Nauraa' | 'Farsya'>('Nauraa');
   const [activePhoto, setActivePhoto] = useState(0);
   const d = tab === 'Nauraa' ? NAURA : FARSYA;
@@ -447,7 +891,7 @@ const ProfileCards = ({ now }: { now: Date }) => {
       </div>
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, x: tab === 'Nauraa' ? -20 : 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: tab === 'Nauraa' ? 20 : -20 }} transition={{ duration: 0.25 }}>
-          <GlassCard>
+          <GlassCard delayIndex={delayIndex}>
             <div className="flex flex-col gap-4 mb-5">
               <div 
                 className="profile-photo-main overflow-hidden border-[1.5px] shadow-[0_8px_24px_rgba(0,0,0,0.3)] bg-white/5 relative cursor-zoom-in hover:brightness-105 transition-all" 
@@ -523,12 +967,12 @@ const ProfileCards = ({ now }: { now: Date }) => {
                   "Paling suka kalau diperhatiin hal kecil",
                   "Zodiac air yang selalu mengalir tenang",
                   "Cokelat adalah bahasa cintanya"
-                ].map((f, i) => <li key={i}>{f}</li>) : [
+                ].map((f) => <li key={f}>{f}</li>) : [
                   "Yang pertama kali bilang sayang",
                   "Kucing adalah hewan paling dimengerti",
                   "Green Day menemani momen paling berani",
                   "Capricorn yang diam-diam sangat perhatian"
-                ].map((f, i) => <li key={i}>{f}</li>)}
+                ].map((f) => <li key={f}>{f}</li>)}
               </ul>
             </details>
           </GlassCard>
@@ -557,13 +1001,13 @@ const CountUpNum = ({ value }: { value: number }) => {
 };
 
 // 4. RelationshipStats
-const RelationshipStats = ({ now }: { now: Date }) => {
-  const diff = now.getTime() - RELATIONSHIP.startDate.getTime();
+const RelationshipStats = ({ now, anniversaryDate, delayIndex = 0 }: { now: Date, anniversaryDate: Date, delayIndex?: number }) => {
+  const diff = now.getTime() - anniversaryDate.getTime();
   const d = Math.floor(diff / 86400000);
   const sec = Math.floor(diff / 1000);
   
   return (
-    <GlassCard className="cursor-pointer" onClick={() => sounds.softPluck()}>
+    <GlassCard delayIndex={delayIndex} className="cursor-pointer" onClick={() => sounds.softPluck()}>
       <h3 className="text-[16px] font-bold mb-4">Statistik Kita</h3>
       <div className="stats-grid">
         {[
@@ -608,12 +1052,13 @@ const RelationshipStats = ({ now }: { now: Date }) => {
 };
 
 // 5. MilestoneTimeline
-const MilestoneTimeline = ({ now }: { now: Date }) => {
+const MilestoneTimeline = ({ now, anniversaryDate, delayIndex = 0 }: { now: Date, anniversaryDate: Date, delayIndex?: number }) => {
+  const milestones = getMilestones(anniversaryDate);
   return (
-    <GlassCard>
+    <GlassCard delayIndex={delayIndex}>
       <h3 className="text-[16px] font-bold mb-4">Perjalanan Milestone</h3>
       <div className="milestone-list">
-        {RELATIONSHIP.milestones.map((m, i) => {
+        {milestones.map((m, i) => {
           const isPast = m.date.getTime() < now.getTime();
           const isToday = m.date.toDateString() === now.toDateString();
           const diff = Math.ceil((m.date.getTime() - now.getTime()) / 86400000);
@@ -655,8 +1100,20 @@ const MilestoneTimeline = ({ now }: { now: Date }) => {
 };
 
 // 6. NextEventCountdown
-const NextEventCountdown = ({ now }: { now: Date }) => {
-  const nextEv = [...RELATIONSHIP.milestones].filter(m => m.date > now).sort((a,b) => a.date.getTime() - b.date.getTime())[0];
+const NextEventCountdown = ({ now, anniversaryDate, delayIndex = 0 }: { now: Date, anniversaryDate: Date, delayIndex?: number }) => {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    setRevealed(false);
+    const raf = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        setRevealed(true);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [delayIndex]);
+
+  const milestones = getMilestones(anniversaryDate);
+  const nextEv = [...milestones].filter(m => m.date > now).sort((a,b) => a.date.getTime() - b.date.getTime())[0];
   if (!nextEv) return null;
 
   const totalDuration = 30 * 86400000; 
@@ -670,8 +1127,14 @@ const NextEventCountdown = ({ now }: { now: Date }) => {
   return (
     <div 
       onClick={() => sounds.sparkleChime()}
-      className="p-7 rounded-[28px] border relative overflow-hidden cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
-      style={{ background: 'rgba(235,194,198,0.06)', borderColor: 'rgba(235,194,198,0.2)' }}
+      className={`p-7 rounded-[28px] border relative overflow-hidden cursor-pointer hover:scale-[1.01] transition-all duration-[750ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        revealed ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-[0.98]'
+      }`}
+      style={{ 
+        background: 'rgba(235,194,198,0.06)', 
+        borderColor: 'rgba(235,194,198,0.2)',
+        transitionDelay: `${delayIndex * 80}ms`
+      }}
     >
       <div className="text-center">
         <div className="text-[10px] uppercase tracking-[3px] text-[#5A5A70] mb-1">EVENT SELANJUTNYA</div>
@@ -696,8 +1159,8 @@ const NextEventCountdown = ({ now }: { now: Date }) => {
 };
 
 // 7. ZodiacMatch
-const ZodiacMatch = () => (
-  <GlassCard className="cursor-pointer" onClick={() => sounds.waterDroplet()}>
+const ZodiacMatch = ({ delayIndex = 0 }: { delayIndex?: number }) => (
+  <GlassCard delayIndex={delayIndex} className="cursor-pointer" onClick={() => sounds.waterDroplet()}>
     <h3 className="text-[16px] font-bold mb-6">Kecocokan Bintang</h3>
     <div className="flex items-center justify-center gap-4 mb-6">
       <motion.div initial={{ x: -20, opacity: 0 }} whileInView={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
@@ -747,7 +1210,7 @@ const ZodiacMatch = () => (
 );
 
 // 8. LoveLanguage
-const LoveLanguage = () => {
+const LoveLanguage = ({ delayIndex = 0 }: { delayIndex?: number }) => {
   const [t, setT] = useState<'Nauraa'|'Farsya'>('Nauraa');
   const items = t === 'Nauraa' ? [
     { n: "Words of Affirmation", v: 90 }, { n: "Quality Time", v: 80 }, { n: "Physical Touch", v: 70 }, { n: "Acts of Service", v: 65 }, { n: "Receiving Gifts", v: 55 }
@@ -756,7 +1219,7 @@ const LoveLanguage = () => {
   ];
 
   return (
-    <GlassCard>
+    <GlassCard delayIndex={delayIndex}>
       <div className="flex justify-between items-center mb-5">
         <h3 className="text-[16px] font-bold">Bahasa Cinta</h3>
         <div className="flex bg-white/5 rounded-full p-1">
@@ -789,7 +1252,17 @@ const LoveLanguage = () => {
 };
 
 // 9. PhotoGallery
-const PhotoItem = ({ src, label, caption, onClick, index, className = '' }: { src: string, label: string, caption?: string, onClick: () => void, index: number, className?: string }) => {
+const PhotoGalleryContext = React.createContext<{
+  loveFilter: boolean;
+  favorites: string[];
+  toggleFavorite: (url: string) => void;
+} | null>(null);
+
+const PhotoItem = ({ src, label, caption, onClick, index, className = '', isCustom, onDelete }: { src: string, label: string, caption?: string, onClick: () => void, index: number, className?: string, isCustom?: boolean, onDelete?: (e: React.MouseEvent) => void }) => {
+  const galleryCtx = React.useContext(PhotoGalleryContext);
+  const showLoveFilter = galleryCtx?.loveFilter || false;
+  const isFavorite = galleryCtx?.favorites.includes(src) || false;
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 35 }}
@@ -803,21 +1276,54 @@ const PhotoItem = ({ src, label, caption, onClick, index, className = '' }: { sr
         filter: 'brightness(1.03)' 
       }}
       whileTap={{ scale: 0.98 }}
-      className={`photo-item relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] cursor-zoom-in transition-all duration-300 ${className}`}
+      className={`photo-item relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] cursor-zoom-in transition-all duration-300 ${className} ${showLoveFilter ? 'after:absolute after:inset-0 after:bg-pink-500/15 after:pointer-events-none after:mix-blend-color-burn' : ''}`}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
     >
       <Photo src={src} className="w-full h-full object-cover" />
+      
+      {/* Love Filter visual overlay element */}
+      {showLoveFilter && (
+        <div className="absolute inset-0 bg-pink-500/10 pointer-events-none mix-blend-color z-10" />
+      )}
+
+      {/* Favorite Heart Button */}
+      {galleryCtx && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); galleryCtx.toggleFavorite(src); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute top-2 left-2 bg-[#1A0A0C]/80 p-2 rounded-full hover:scale-110 active:scale-95 transition-all z-30 shadow shadow-black/50"
+        >
+          <Heart size={14} className={`${isFavorite ? 'text-rose-500 fill-rose-500 animate-pulse' : 'text-white/60 hover:text-white'}`} />
+        </button>
+      )}
+
+      {isCustom && onDelete && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete(e); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute top-2 right-2 bg-[#1A0A0C]/80 p-2 rounded-full hover:bg-red-500 transition-colors z-30 text-white shadow shadow-black/50"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
         <div className="flex items-center justify-between">
           <div className="text-left">
             <p className="text-[11px] font-bold text-white/90 tracking-wide">{label}</p>
             {caption && <p className="text-[10px] text-white/70 line-clamp-1">{caption}</p>}
           </div>
-          <div className="p-1.5 bg-white/10 rounded-full backdrop-blur-md">
-            <Expand size={14} className="text-white" />
+          <div className="flex items-center gap-1.5 z-20">
+            {isFavorite && (
+              <div className="p-1.5 bg-rose-500/20 text-rose-400 rounded-full backdrop-blur-md border border-rose-500/35">
+                <Heart size={12} className="fill-current text-rose-400" />
+              </div>
+            )}
+            <div className="p-1.5 bg-white/10 rounded-full backdrop-blur-md">
+              <Expand size={14} className="text-white" />
+            </div>
           </div>
         </div>
       </div>
@@ -825,57 +1331,135 @@ const PhotoItem = ({ src, label, caption, onClick, index, className = '' }: { sr
   );
 };
 
-const PhotoGallery = () => {
+const PhotoGallery = ({ delayIndex = 0, activeUser }: { delayIndex?: number, activeUser: 'Nauraa' | 'Farsya' }) => {
   const [tab, setTab] = useState<'N'|'F'|'B'>('B');
   const [categoryFilter, setCategoryFilter] = useState<'All' | 'Dates' | 'Liburan' | 'Selfies'>('All');
   const { open } = useLightbox();
 
-  // Reset category filter when tab changes
+  const [loveFilter, setLoveFilter] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('love_favorite_photos');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFavorite = (url: string) => {
+    sounds.clickSound();
+    const isFav = favorites.includes(url);
+    const newFavs = isFav ? favorites.filter(id => id !== url) : [...favorites, url];
+    setFavorites(newFavs);
+    localStorage.setItem('love_favorite_photos', JSON.stringify(newFavs));
+  };
+
+  // Load custom photos from Firebase or falling back to local
+  const [syncedPhotos, setSyncedPhotos] = useState<any[]>([]);
+
   useEffect(() => {
-    setCategoryFilter('All');
-  }, [tab]);
+    const unsub = syncPhotos((photos) => {
+      setSyncedPhotos(photos);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    sounds.clickSound();
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      const caption = prompt("Beri caption untuk foto ini?", `Kenangan Baru - ${new Date().toLocaleDateString()}`) || "";
+      await addPhoto(base64, caption, tab, activeUser);
+      sounds.successSound();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDeletePhoto = async (id: string | undefined, url: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    sounds.clickSound();
+    if (id) {
+       await deleteDoc(doc(db, 'photos', id));
+    }
+  };
 
   const getPhotos = () => {
     if (tab === 'N') {
       const cats = ['Selfies', 'Dates', 'Selfies', 'Liburan'];
-      return NAURA.photos.map((u, i) => ({ 
+      const base = NAURA.photos.map((u, i) => ({ 
         u, 
         l: 'Nauraa Rayyani Ayu', 
         c: 'Senyum manis Nauraa Rayyani Ayu', 
         cat: cats[i % cats.length] 
       }));
+      const custom = syncedPhotos.filter(p => p.tab === 'N').map(x => ({ id: x.id, u: x.url, l: 'Nauraa Rayyani Ayu', c: x.caption, cat: 'Selfies', isCustom: true }));
+      return [...custom, ...base];
     }
     if (tab === 'F') {
       const cats = ['Selfies', 'Dates', 'Liburan', 'Selfies'];
-      return FARSYA.photos.map((u, i) => ({ 
+      const base = FARSYA.photos.map((u, i) => ({ 
         u, 
         l: 'Farsya Zahri', 
         c: 'Pose hangat Farsya Zahri', 
         cat: cats[i % cats.length] 
       }));
+      const custom = syncedPhotos.filter(p => p.tab === 'F').map(x => ({ id: x.id, u: x.url, l: 'Farsya Zahri', c: x.caption, cat: 'Selfies', isCustom: true }));
+      return [...custom, ...base];
     }
     const cats = ['Dates', 'Selfies', 'Liburan', 'Dates', 'Liburan', 'Dates', 'Liburan', 'Selfies', 'Selfies', 'Dates', 'Liburan'];
-    return TOGETHER_PHOTOS.map((x, i) => ({ 
+    const base = TOGETHER_PHOTOS.map((x, i) => ({ 
       u: x.url, 
       l: 'Berdua', 
       c: x.caption, 
       cat: cats[i % cats.length] 
     }));
+    const custom = syncedPhotos.filter(p => p.tab === 'B').map(x => ({ id: x.id, u: x.url, l: 'Berdua', c: x.caption, cat: 'Dates', isCustom: true }));
+    return [...custom, ...base];
   };
-  
+
   const allPhotosForTab = getPhotos();
   const filteredPhotos = categoryFilter === 'All' 
     ? allPhotosForTab 
     : allPhotosForTab.filter(p => p.cat === categoryFilter);
 
   return (
-    <GlassCard>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div>
-          <h3 className="text-[16px] font-bold">Foto Kita</h3>
-          <p className="text-[11px] text-[#9A9AB0]">Momen terindah perjalanan cinta kita</p>
+    <PhotoGalleryContext.Provider value={{ loveFilter, favorites, toggleFavorite }}>
+      <GlassCard delayIndex={delayIndex}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-[16px] font-bold">Foto Kita</h3>
+            <p className="text-[11px] text-[#9A9AB0]">Momen terindah perjalanan cinta kita</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Love Filter Toggle Button */}
+            <button 
+              onClick={() => { sounds.clickSound(); setLoveFilter(!loveFilter); }}
+              className={`text-[10px] px-3 py-1.5 rounded-full flex gap-1.5 items-center cursor-pointer transition-all border active:scale-95 ${loveFilter ? 'bg-pink-500/20 text-pink-300 border-pink-500/40 shadow-[0_0_10px_rgba(244,63,94,0.35)] font-semibold' : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white'}`}
+            >
+              <Sparkles size={11} className={loveFilter ? 'text-pink-300 animate-[spin_4s_linear_infinite]' : ''} />
+              <span>Love Filter: {loveFilter ? 'ON 💖' : 'OFF'}</span>
+            </button>
+
+            {loveFilter && (
+              <button 
+                onClick={() => { sounds.clickSound(); setLoveFilter(false); }}
+                className="text-[10px] px-3 py-1.5 rounded-full flex gap-1.5 items-center cursor-pointer transition-all border border-pink-500/35 bg-pink-500/10 hover:bg-pink-500/25 active:scale-95 font-semibold text-pink-200"
+              >
+                <RotateCcw size={11} className="text-pink-300 animate-spin-slow" />
+                <span>Reset Pin</span>
+              </button>
+            )}
+
+            <label className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full flex gap-1.5 items-center cursor-pointer transition-colors border border-white/5 active:scale-95 text-[#EBC2C6]">
+              <Camera size={14} /> Tambah Foto
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+            </label>
+          </div>
         </div>
-      </div>
       
       {/* Top Main Tabs (Nauraa, Farsya, Berdua) */}
       <div className="photo-tabs flex gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
@@ -949,6 +1533,8 @@ const PhotoGallery = () => {
             >
               {filteredPhotos.map((p, i) => (
                 <PhotoItem
+                  isCustom={(p as any).isCustom}
+                  onDelete={(e) => handleDeletePhoto((p as any).id, p.u, e)}
                   key={`${p.u}-${i}`}
                   src={p.u}
                   label={p.l}
@@ -966,6 +1552,8 @@ const PhotoGallery = () => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="photo-grid-2x2">
                   {filteredPhotos.map((p, i) => (
                     <PhotoItem
+                      isCustom={(p as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((p as any).id, p.u, e)}
                       key={`${p.u}-${i}`}
                       src={p.u}
                       label={p.l}
@@ -980,6 +1568,8 @@ const PhotoGallery = () => {
               {tab === 'F' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="photo-grid-farsya">
                   <PhotoItem
+                    isCustom={(filteredPhotos[0] as any).isCustom}
+                    onDelete={(e) => handleDeletePhoto((filteredPhotos[0] as any).id, filteredPhotos[0].u, e)}
                     src={filteredPhotos[0].u}
                     label={filteredPhotos[0].l}
                     caption={filteredPhotos[0].c}
@@ -989,6 +1579,8 @@ const PhotoGallery = () => {
                   />
                   {filteredPhotos.slice(1).map((p, i) => (
                     <PhotoItem
+                      isCustom={(p as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((p as any).id, p.u, e)}
                       key={`${p.u}-${i}`}
                       src={p.u}
                       label={p.l}
@@ -1005,6 +1597,8 @@ const PhotoGallery = () => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="photo-grid-berdua">
                   {/* [0] full width featured */}
                   <PhotoItem 
+                    isCustom={(filteredPhotos[0] as any).isCustom}
+                    onDelete={(e) => handleDeletePhoto((filteredPhotos[0] as any).id, filteredPhotos[0].u, e)}
                     src={filteredPhotos[0].u} 
                     label="Berdua"
                     caption={filteredPhotos[0].c}
@@ -1015,6 +1609,8 @@ const PhotoGallery = () => {
 
                   {/* [1][2] */}
                   <PhotoItem 
+                    isCustom={(filteredPhotos[1] as any).isCustom}
+                    onDelete={(e) => handleDeletePhoto((filteredPhotos[1] as any).id, filteredPhotos[1].u, e)}
                     src={filteredPhotos[1].u} 
                     label="Berdua"
                     caption={filteredPhotos[1].c}
@@ -1024,6 +1620,8 @@ const PhotoGallery = () => {
                   />
 
                   <PhotoItem 
+                    isCustom={(filteredPhotos[2] as any).isCustom}
+                    onDelete={(e) => handleDeletePhoto((filteredPhotos[2] as any).id, filteredPhotos[2].u, e)}
                     src={filteredPhotos[2].u} 
                     label="Berdua"
                     caption={filteredPhotos[2].c}
@@ -1035,6 +1633,8 @@ const PhotoGallery = () => {
                   {/* [3][4][5] 3 columns row */}
                   <div className="photo-row-3">
                     <PhotoItem 
+                      isCustom={(filteredPhotos[3] as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((filteredPhotos[3] as any).id, filteredPhotos[3].u, e)}
                       src={filteredPhotos[3].u} 
                       label="Berdua"
                       caption={filteredPhotos[3].c}
@@ -1044,6 +1644,8 @@ const PhotoGallery = () => {
                     />
 
                     <PhotoItem 
+                      isCustom={(filteredPhotos[4] as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((filteredPhotos[4] as any).id, filteredPhotos[4].u, e)}
                       src={filteredPhotos[4].u} 
                       label="Berdua"
                       caption={filteredPhotos[4].c}
@@ -1053,6 +1655,8 @@ const PhotoGallery = () => {
                     />
 
                     <PhotoItem 
+                      isCustom={(filteredPhotos[5] as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((filteredPhotos[5] as any).id, filteredPhotos[5].u, e)}
                       src={filteredPhotos[5].u} 
                       label="Berdua"
                       caption={filteredPhotos[5].c}
@@ -1064,6 +1668,8 @@ const PhotoGallery = () => {
 
                   {/* [6][7] */}
                   <PhotoItem 
+                    isCustom={(filteredPhotos[6] as any).isCustom}
+                    onDelete={(e) => handleDeletePhoto((filteredPhotos[6] as any).id, filteredPhotos[6].u, e)}
                     src={filteredPhotos[6].u} 
                     label="Berdua"
                     caption={filteredPhotos[6].c}
@@ -1073,6 +1679,8 @@ const PhotoGallery = () => {
                   />
 
                   <PhotoItem 
+                    isCustom={(filteredPhotos[7] as any).isCustom}
+                    onDelete={(e) => handleDeletePhoto((filteredPhotos[7] as any).id, filteredPhotos[7].u, e)}
                     src={filteredPhotos[7].u} 
                     label="Berdua"
                     caption={filteredPhotos[7].c}
@@ -1084,6 +1692,8 @@ const PhotoGallery = () => {
                   {/* [8] full width */}
                   {filteredPhotos[8] && (
                     <PhotoItem 
+                      isCustom={(filteredPhotos[8] as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((filteredPhotos[8] as any).id, filteredPhotos[8].u, e)}
                       src={filteredPhotos[8].u} 
                       label="Berdua"
                       caption={filteredPhotos[8].c}
@@ -1096,6 +1706,8 @@ const PhotoGallery = () => {
                   {/* [9][10] */}
                   {filteredPhotos[9] && (
                     <PhotoItem 
+                      isCustom={(filteredPhotos[9] as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((filteredPhotos[9] as any).id, filteredPhotos[9].u, e)}
                       src={filteredPhotos[9].u} 
                       label="Berdua"
                       caption={filteredPhotos[9].c}
@@ -1107,6 +1719,8 @@ const PhotoGallery = () => {
 
                   {filteredPhotos[10] && (
                     <PhotoItem 
+                      isCustom={(filteredPhotos[10] as any).isCustom}
+                      onDelete={(e) => handleDeletePhoto((filteredPhotos[10] as any).id, filteredPhotos[10].u, e)}
                       src={filteredPhotos[10].u} 
                       label="Berdua"
                       caption={filteredPhotos[10].c}
@@ -1122,11 +1736,72 @@ const PhotoGallery = () => {
         )}
       </div>
     </GlassCard>
+    </PhotoGalleryContext.Provider>
   );
 };
 
 // 10. MemoryBoard
-const MemoryBoard = () => {
+const MemoryBoard = ({ anniversaryDate, delayIndex = 0 }: { anniversaryDate: Date, delayIndex?: number }) => {
+  const [memories, setMemories] = useState<any[]>(() => {
+    const saved = localStorage.getItem('love_journey_memories');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return getDynamicMemories(anniversaryDate);
+  });
+
+  const [isCleanupMode, setIsCleanupMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('love_journey_memories');
+    if (!saved) {
+      setMemories(getDynamicMemories(anniversaryDate));
+    }
+  }, [anniversaryDate]);
+
+  const [memoryLikes, setMemoryLikes] = useState<{[key: number]: number}>(() => {
+    try {
+      const saved = localStorage.getItem('love_journey_memory_likes');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [floatingHearts, setFloatingHearts] = useState<{id: string, x: number, y: number}[]>([]);
+  const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
+
+  const handleLikeMemory = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    sounds.clickSound();
+    
+    // Heart animation
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top;
+    
+    const heartId = Date.now().toString() + Math.random();
+    setFloatingHearts(prev => [...prev, {id: heartId, x, y}]);
+    setTimeout(() => {
+        setFloatingHearts(prev => prev.filter(h => h.id !== heartId));
+    }, 1000);
+    
+    setMemoryLikes(prev => {
+        const newLikes = { ...prev, [id]: (prev[id] || 0) + 1 };
+        localStorage.setItem('love_journey_memory_likes', JSON.stringify(newLikes));
+        return newLikes;
+    });
+  };
+
+  const saveMemories = (newList: any[]) => {
+    setMemories(newList);
+    localStorage.setItem('love_journey_memories', JSON.stringify(newList));
+  };
+
   const getIcon = (n: string, size=24, col: string) => {
     switch(n) {
       case 'moon': return <Moon size={size} color={col}/>;
@@ -1138,56 +1813,450 @@ const MemoryBoard = () => {
     }
   };
 
+  const handleToggleSelectChange = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk Delete
+  const handleBulkDelete = () => {
+    sounds.clickSound();
+    const newList = memories.filter(m => !selectedIds.includes(m.id));
+    saveMemories(newList);
+    setSelectedIds([]);
+    setIsCleanupMode(false);
+  };
+
+  // Bulk Archive
+  const handleBulkArchive = () => {
+    sounds.sparkleChime();
+    const newList = memories.map(m => 
+      selectedIds.includes(m.id) ? { ...m, isArchived: true } : m
+    );
+    saveMemories(newList);
+    setSelectedIds([]);
+    setIsCleanupMode(false);
+  };
+
+  // Reset memories to default
+  const handleResetMemories = () => {
+    sounds.waterDroplet();
+    saveMemories(getDynamicMemories(anniversaryDate));
+    setSelectedIds([]);
+    setIsCleanupMode(false);
+  };
+
+  // Helper to add fake duplicates / old memories for demonstration
+  const handleAddDemoElements = () => {
+    sounds.sparkleChime();
+    const demoItems = [
+      {
+        id: Date.now(),
+        icon: 'heart',
+        color: '#EBC2C6',
+        title: 'Chat Tengah Malam', // Duplicate of id 1
+        date: '24 Maret 2026', // Old date
+        description: 'Salinan duplikat dari obrolan pertama kita — ayo bersihkan ini!',
+        isDemo: true
+      },
+      {
+        id: Date.now() + 1,
+        icon: 'music',
+        color: '#D6C2E8',
+        title: 'Momen Duplikat 1',
+        date: '15 Maret 2026', // Old date
+        description: 'Contoh memori usang dari bulan Maret yang harus dibersihkan.',
+        isDemo: true
+      },
+      {
+        id: Date.now() + 2,
+        icon: 'music',
+        color: '#D6C2E8',
+        title: 'Momen Duplikat 1', // Duplicate title
+        date: '10 April 2026',
+        description: 'Satu lagi memori dengan judul yang sama dengan di atas.',
+        isDemo: true
+      }
+    ];
+    saveMemories([...memories, ...demoItems]);
+  };
+
+  // Process list
+  const activeMemories = memories.filter(m => showArchived ? m.isArchived : !m.isArchived);
+
+  // Checks for duplicates
+  const duplicateTitles = activeMemories.reduce((acc: {[key: string]: number}, m) => {
+    acc[m.title] = (acc[m.title] || 0) + 1;
+    return acc;
+  }, {});
+
+  const processedMemories = activeMemories.map(m => {
+    const isDuplicate = duplicateTitles[m.title] > 1;
+    const isOld = m.date.includes('Maret') || m.date.includes('Mar') || m.date.includes('2025');
+    return {
+      ...m,
+      isDuplicate,
+      isOld
+    };
+  });
+
   return (
-    <GlassCard className="p-0 overflow-hidden pt-5 pb-2">
-      <div className="px-5 mb-4">
-        <h3 className="text-[16px] font-bold">Kenangan Manis</h3>
-        <p className="text-[12px] text-[#9A9AB0] mt-1">Momen yang selalu diingat</p>
-      </div>
-      <div className="flex gap-4 overflow-x-auto scroll-snap-x pl-6 pr-6 pb-6 pt-2 scrollbar-hide">
-        {MEMORIES.map((m) => (
-          <motion.div 
-            key={m.id} 
-            whileHover={{ y: -4, borderColor: `${m.color}60` }} 
-            onClick={() => sounds.knockSound()}
-            className="shrink-0 w-[200px] h-[170px] snap-start bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col border-l-[3px] cursor-pointer" 
-            style={{ borderLeftColor: m.color }}
+    <GlassCard delayIndex={delayIndex} className="p-0 overflow-hidden pt-5 pb-5">
+      <div className="px-5 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="text-[16px] font-bold text-white">Kenangan Manis</h3>
+          <p className="text-[12px] text-[#9A9AB0] mt-1">Momen yang selalu kita ingat dan abadikan</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle show archived */}
+          <button
+            type="button"
+            onClick={() => { sounds.clickSound(); setShowArchived(prev => !prev); }}
+            className={`text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border cursor-pointer ${
+              showArchived 
+                ? 'bg-purple-500/20 text-[#D6C2E8] border-purple-500/40' 
+                : 'bg-white/5 text-white/50 border-white/10 hover:text-white'
+            }`}
           >
-            <div className="mb-3">{getIcon(m.icon, 24, m.color)}</div>
-            <h4 className="font-bold text-[14px] leading-tight mb-1">{m.title}</h4>
-            <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: m.color }}>{m.date}</div>
-            <p className="text-[12px] text-[#9A9AB0] leading-relaxed line-clamp-3">{m.description}</p>
+            {showArchived ? 'Lihat Aktif' : 'Lihat Arsip 📁'}
+          </button>
+
+          {/* Toggle cleanup mode */}
+          <button
+            type="button"
+            onClick={() => { sounds.clickSound(); setIsCleanupMode(prev => !prev); setSelectedIds([]); }}
+            className={`text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border flex items-center gap-1.5 cursor-pointer ${
+              isCleanupMode 
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' 
+                : 'bg-white/5 text-white/50 border-white/10 hover:text-white hover:border-white/20'
+            }`}
+          >
+            <span>🧹 {isCleanupMode ? 'Selesai Bersihkan' : 'Arsip & Bersihkan'}</span>
+          </button>
+
+          {/* Reset button if list is customized */}
+          {memories.length !== 5 && (
+            <button
+              type="button"
+              onClick={handleResetMemories}
+              className="text-[11px] font-bold bg-white/5 text-white/40 border border-white/10 hover:text-white/70 hover:border-white/20 px-3 py-1.5 rounded-full transition-all cursor-pointer"
+              title="Kembalikan semua memori bawaan"
+            >
+              Reset 🔄
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Danger/Highlight alert if cleanup mode is active */}
+      {isCleanupMode && (
+        <div className="mx-5 mb-4 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-orange-200">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold flex items-center gap-1">⚠️ Mode Pembersihan Aktif</span>
+            <span>Memori dengan tanda berwarna <strong className="text-red-400">⚠️ Duplikat</strong> atau <strong className="text-orange-400">⏳ Usang</strong> disorot otomatis untuk memudahkan perapian.</span>
+          </div>
+          <button 
+            type="button"
+            onClick={handleAddDemoElements}
+            className="self-start sm:self-center bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 px-2.5 py-1 rounded-lg transition-colors font-bold text-[10px] cursor-pointer"
+          >
+            + Buat Contoh Duplikat untuk Tes
+          </button>
+        </div>
+      )}
+
+      {processedMemories.length === 0 ? (
+        <div className="text-center py-10 text-white/40 italic text-xs mx-5 bg-white/[0.01] border border-dashed border-white/10 rounded-2xl">
+          Tidak ada memori di folder ini. {showArchived ? 'Arsip Anda kosong.' : 'Silakan gunakan tombol Reset untuk memulihkan!'}
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto scroll-snap-x pl-6 pr-6 pb-5 pt-2 scrollbar-none">
+          {processedMemories.map((m) => {
+            const isSelected = selectedIds.includes(m.id);
+            return (
+              <motion.div 
+                key={m.id} 
+                whileHover={isCleanupMode ? {} : { y: -4, borderColor: `${m.color}60` }} 
+                onClick={() => {
+                  if (isCleanupMode) {
+                    sounds.clickSound();
+                    handleToggleSelectChange(m.id);
+                  } else {
+                    sounds.knockSound();
+                    setExpandedCardId(m.id);
+                  }
+                }}
+                className={`relative shrink-0 w-[210px] h-[190px] snap-start bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col border-l-[3px] transition-all cursor-pointer select-none group ${
+                  isSelected ? 'ring-2 ring-rose-400 border-rose-400 shadow-lg shadow-rose-500/10' : ''
+                } ${
+                  isCleanupMode && m.isDuplicate ? 'ring-1 ring-red-500/50 hover:bg-red-500/5 border-red-500/20' : ''
+                } ${
+                  isCleanupMode && m.isOld && !m.isDuplicate ? 'ring-1 ring-orange-500/50 hover:bg-orange-500/5 border-orange-500/20' : ''
+                }`}
+                style={{ borderLeftColor: isCleanupMode ? (m.isDuplicate ? '#ef4444' : m.isOld ? '#f97316' : m.color) : m.color }}
+              >
+                {/* Selection checkbox overlay in cleanup mode */}
+                {isCleanupMode && (
+                  <div className="absolute top-3 right-3 z-10 w-5 h-5 rounded-full border border-white/30 flex items-center justify-center bg-black/40">
+                    <div className={`w-3 h-3 rounded-full transition-all ${isSelected ? 'bg-rose-400 scale-100' : 'scale-0'}`} />
+                  </div>
+                )}
+
+                {/* Badges */}
+                <div className="flex items-center gap-1.5 mb-2.5">
+                  <div className="shrink-0">{getIcon(m.icon, 20, m.color)}</div>
+                  {isCleanupMode && m.isDuplicate && (
+                    <span className="text-[9px] bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded border border-red-500/30 font-bold uppercase tracking-wider motion-safe:animate-pulse">
+                      ⚠️ Duplikat
+                    </span>
+                  )}
+                  {isCleanupMode && m.isOld && (
+                    <span className="text-[9px] bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded border border-orange-500/30 font-bold uppercase tracking-wider">
+                      ⏳ Usang
+                    </span>
+                  )}
+                </div>
+
+                <h4 className="font-bold text-[13px] leading-tight mb-1 text-white truncate">{m.title}</h4>
+                <div className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: m.color }}>{m.date}</div>
+                <p className="text-[11px] text-[#9A9AB0] leading-relaxed line-clamp-3">{m.description}</p>
+                
+                {/* Single Delete/Archive in normal view if user wants to play around */}
+                {!isCleanupMode && (
+                  <div className="mt-auto pt-2 flex justify-between items-center opacity-0 hover:opacity-100 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button 
+                      onClick={(e) => handleLikeMemory(e, m.id)}
+                      className="text-[10px] flex items-center gap-1.5 text-rose-400/80 hover:text-rose-400 p-1.5 rounded cursor-pointer"
+                    >
+                      <Heart size={14} className={memoryLikes[m.id] ? "fill-current scale-110" : "scale-100"} />
+                      <span className="font-bold">{memoryLikes[m.id] ? memoryLikes[m.id] : ""}</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        sounds.clickSound();
+                        saveMemories(memories.filter(x => x.id !== m.id));
+                      }}
+                      className="text-[10px] text-rose-400/70 hover:text-rose-400 p-1 rounded cursor-pointer"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Floating Action Buttons for cleanup mode */}
+      {isCleanupMode && selectedIds.length > 0 && (
+        <div className="mx-5 mt-4 p-2.5 rounded-xl bg-rose-950/20 border border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-200">
+          <span className="font-semibold text-[11px] px-1 text-rose-300">Terpilih: <strong>{selectedIds.length}</strong> memori</span>
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="flex-1 sm:flex-none text-[11px] font-bold text-white/60 hover:text-white px-3.5 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-all cursor-pointer"
+            >
+              Batal
+            </button>
+            <button 
+              type="button"
+              onClick={handleBulkArchive}
+              className="flex-1 sm:flex-none text-[11px] font-bold bg-purple-600/30 text-[#D6C2E8] border border-purple-500/30 hover:bg-purple-600/40 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              📁 Arsipkan Terpilih
+            </button>
+            <button 
+              type="button"
+              onClick={handleBulkDelete}
+              className="flex-1 sm:flex-none text-[11px] font-bold bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-1.5 rounded-lg shadow-sm shadow-rose-500/10 transition-all flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <Trash2 size={11} />
+              <span>Hapus Massal</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Hearts Animation */}
+      <AnimatePresence>
+        {floatingHearts.map(heart => (
+          <motion.div
+            key={heart.id}
+            initial={{ opacity: 1, y: heart.y, x: heart.x, scale: 0.5 }}
+            animate={{ opacity: 0, y: heart.y - 120, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="fixed z-[9999] pointer-events-none text-rose-400"
+          >
+            <Heart size={32} className="fill-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]" />
           </motion.div>
         ))}
-      </div>
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {expandedCardId && (() => {
+           const card = activeMemories.find(m => m.id === expandedCardId);
+           if (!card) return null;
+           return (
+             <motion.div
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+               onClick={() => setExpandedCardId(null)}
+             >
+               <motion.div
+                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                 animate={{ opacity: 1, scale: 1, y: 0 }}
+                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                 className="bg-[#1C1C28] border border-white/10 p-6 rounded-3xl max-w-sm w-full relative shadow-2xl"
+                 onClick={e => e.stopPropagation()}
+                 style={{ borderTop: `4px solid ${card.color}` }}
+               >
+                 <button onClick={() => setExpandedCardId(null)} className="absolute top-4 right-4 text-white/50 hover:text-white cursor-pointer bg-white/5 p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                   <X size={16} />
+                 </button>
+                 <div className="flex items-center gap-3 mb-5 mt-2">
+                   {getIcon(card.icon, 32, card.color)}
+                   <div>
+                     <h4 className="font-bold text-lg leading-tight text-white mb-1">{card.title}</h4>
+                     <div className="text-xs uppercase tracking-wider font-semibold" style={{ color: card.color }}>{card.date}</div>
+                   </div>
+                 </div>
+                 <p className="text-[13px] text-[#9A9AB0] leading-relaxed mb-8 whitespace-pre-wrap">{card.description}</p>
+                 
+                 <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                   <button 
+                     onClick={(e) => handleLikeMemory(e, card.id)} 
+                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer active:scale-95"
+                   >
+                     <Heart size={16} className={memoryLikes[card.id] ? "fill-current" : ""} />
+                     <span className="text-[11px] font-bold">{memoryLikes[card.id] || "Suka"}</span>
+                   </button>
+                   
+                   <button 
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       sounds.clickSound();
+                       saveMemories(memories.filter(x => x.id !== card.id));
+                       setExpandedCardId(null);
+                     }}
+                     className="text-[11px] text-white/40 hover:text-rose-400 px-3 py-1.5 flex items-center gap-1.5 cursor-pointer bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                   >
+                     <Trash2 size={12} /> Hapus
+                   </button>
+                 </div>
+               </motion.div>
+             </motion.div>
+           );
+        })()}
+      </AnimatePresence>
     </GlassCard>
   );
 };
 
 // 10b. MemoriesTimeline
-const MemoriesTimeline = () => {
+const MemoriesTimeline = ({ anniversaryDate, delayIndex = 0 }: { anniversaryDate: Date, delayIndex?: number }) => {
   const { open } = useLightbox();
   const timelineData = [
-    { date: "Maret 2026", title: "Awal Cerita", desc: "Setiap hembusan napas dan senyum yang kita bagi melahirkan lembaran baru.", img: "https://files.catbox.moe/btdvy4.jpg", type: 'past' },
-    { date: "April 2026", title: "Tatapan Hangat", desc: "Dalam matamu, aku menemukan dunia yang penuh kehangatan dan kedamaian.", img: "https://files.catbox.moe/5kgxtb.jpg", type: 'past' },
-    { date: "Mei 2026", title: "Detik Berharga", desc: "Menghabiskan waktu denganmu adalah bagian terbaik dari setiap hariku.", img: "https://files.catbox.moe/d5zgaf.jpg", type: 'past' },
-    { date: "Juni 2026", title: "Cerita Bahagia", desc: "Mengukir senyum dan tawa indah yang takkan pernah pudar oleh waktu.", img: "https://files.catbox.moe/ih96oo.jpg", type: 'past' },
-    { date: "Juli 2026", title: "Merajut Asa", desc: "Membangun mimpi indah bersamamu selamanya.", type: 'future' },
+    { date: getIndonesianMonthYear(anniversaryDate, 0), title: "Awal Cerita", desc: "Setiap hembusan napas dan senyum yang kita bagi melahirkan lembaran baru.", img: "https://files.catbox.moe/btdvy4.jpg", type: 'past' },
+    { date: getIndonesianMonthYear(anniversaryDate, 1), title: "Tatapan Hangat", desc: "Dalam matamu, aku menemukan dunia yang penuh kehangatan and kedamaian.", img: "https://files.catbox.moe/5kgxtb.jpg", type: 'past' },
+    { date: getIndonesianMonthYear(anniversaryDate, 2), title: "Detik Berharga", desc: "Menghabiskan waktu denganmu adalah bagian terbaik dari setiap hariku.", img: "https://files.catbox.moe/d5zgaf.jpg", type: 'past' },
+    { date: getIndonesianMonthYear(anniversaryDate, 3), title: "Cerita Bahagia", desc: "Mengukir senyum dan tawa indah yang takkan pernah pudar oleh waktu.", img: "https://files.catbox.moe/ih96oo.jpg", type: 'past' },
+    { date: getIndonesianMonthYear(anniversaryDate, 4), title: "Merajut Asa", desc: "Membangun mimpi indah bersamamu selamanya.", type: 'future' },
   ];
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [timelineLikes, setTimelineLikes] = useState<{[key: string]: number}>(() => {
+    try {
+      const saved = localStorage.getItem('love_journey_timeline_likes');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [floatingHearts, setFloatingHearts] = useState<{id: string, x: number, y: number}[]>([]);
+
+  const handleLikeTimeline = (e: React.MouseEvent, title: string) => {
+    e.stopPropagation();
+    sounds.clickSound();
+    
+    // Heart animation
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top;
+    
+    const heartId = Date.now().toString() + Math.random();
+    setFloatingHearts(prev => [...prev, {id: heartId, x, y}]);
+    setTimeout(() => {
+        setFloatingHearts(prev => prev.filter(h => h.id !== heartId));
+    }, 1000);
+
+    setTimelineLikes(prev => {
+        const newLikes = { ...prev, [title]: (prev[title] || 0) + 1 };
+        localStorage.setItem('love_journey_timeline_likes', JSON.stringify(newLikes));
+        return newLikes;
+    });
+  };
+
+  const filteredTimeline = timelineData.filter(item => 
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.desc.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <GlassCard className="relative overflow-hidden">
-      <h3 className="text-[16px] font-bold mb-6">Timeline Kenangan</h3>
-      <div className="relative border-l-2 border-[#EBC2C6]/30 pl-[28px] space-y-6">
-        {timelineData.map((item, i) => (
-          <motion.div key={i} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1, duration: 0.5, ease: 'easeOut' }} className="relative flex items-start gap-3">
-            <div className="absolute -left-[35px] top-1 w-[10px] h-[10px] rounded-full bg-[#EBC2C6] shadow-[0_0_8px_#EBC2C6]" />
-            <div className="flex-1">
-              <div className="text-[10px] text-[#EBC2C6] font-bold tracking-widest uppercase mb-1">{item.date}</div>
-              <h4 className="text-[15px] font-semibold mb-1">{item.title}</h4>
-              <p className="text-[12px] text-[#9A9AB0] leading-[1.6] line-clamp-2">{item.desc}</p>
-            </div>
-            {item.type === 'past' && item.img ? (
+    <GlassCard delayIndex={delayIndex} className="relative overflow-hidden w-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-3 mb-6">
+        <h3 className="text-[16px] font-bold text-white">Timeline Kenangan</h3>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button 
+                onClick={() => exportTimelineAsJSON(timelineData)}
+                className="p-2 bg-white/5 border border-white/10 rounded-full text-white/50 hover:text-white transition-all cursor-pointer"
+                title="Ekspor Timeline"
+            >
+                <Download size={14} />
+            </button>
+            <input 
+                type="text"
+                placeholder="Cari momen..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-[200px] bg-white/5 border border-white/10 rounded-full px-4 py-2 text-[12px] text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#EBC2C6] focus:border-[#EBC2C6]/50 transition-all shadow-inner"
+            />
+        </div>
+      </div>
+      
+      {filteredTimeline.length === 0 ? (
+        <div className="text-center py-8 text-[12px] text-[#9A9AB0] bg-white/5 rounded-2xl border border-dashed border-white/10 italic">
+            Tidak ada kenangan yang cocok.
+        </div>
+      ) : (
+        <div className="relative border-l-2 border-[#EBC2C6]/30 pl-[28px] space-y-7">
+          {filteredTimeline.map((item, i) => (
+            <motion.div key={item.id || `${item.date}-${item.title}`} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1, duration: 0.5, ease: 'easeOut' }} className="relative flex items-start gap-4 group/timeline">
+              <div className="absolute -left-[35px] top-1.5 w-[12px] h-[12px] rounded-full bg-[#EBC2C6] shadow-[0_0_8px_#EBC2C6] group-hover/timeline:scale-125 transition-transform" />
+              <div className="flex-1">
+                <div className="text-[10px] text-[#EBC2C6] font-bold tracking-widest uppercase mb-1">{item.date}</div>
+                <h4 className="text-[15px] font-bold text-white mb-1.5">{item.title}</h4>
+                <p className="text-[12px] text-[#9A9AB0] leading-relaxed line-clamp-2 md:line-clamp-none">{item.desc}</p>
+                
+                <div className="mt-2.5 flex items-center gap-2">
+                    <button 
+                      onClick={(e) => handleLikeTimeline(e, item.title)} 
+                      className="flex items-center gap-1 text-[11px] font-semibold text-rose-400/80 hover:text-rose-400 hover:bg-rose-400/10 px-2 py-1 rounded-md transition-all cursor-pointer active:scale-95"
+                    >
+                        <Heart size={13} className={timelineLikes[item.title] ? "fill-current" : ""} />
+                        <span>{timelineLikes[item.title] > 0 ? timelineLikes[item.title] : "Suka"}</span>
+                    </button>
+                </div>
+              </div>
+              {item.type === 'past' && item.img ? (
               <motion.div 
                 whileHover={{ scale: 1.05 }} 
                 className="w-[88px] h-[88px] shrink-0 rounded-[14px] overflow-hidden border-[1.5px] border-white/10 relative cursor-zoom-in"
@@ -1207,55 +2276,141 @@ const MemoriesTimeline = () => {
           </motion.div>
         ))}
       </div>
+      )}
+
+      {/* Floating Hearts Animation for Timeline */}
+      <AnimatePresence>
+        {floatingHearts.map(heart => (
+          <motion.div
+            key={heart.id}
+            initial={{ opacity: 1, y: heart.y, x: heart.x, scale: 0.5 }}
+            animate={{ opacity: 0, y: heart.y - 120, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="fixed z-[9999] pointer-events-none text-rose-400"
+          >
+            <Heart size={32} className="fill-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]" />
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </GlassCard>
   );
 };
 
 // 11. BucketListPreview
-const BucketListPreview = () => {
-  const [list, setList] = useState(BUCKET_PREVIEW);
+const BucketListPreview = ({ delayIndex = 0, activeUser }: { delayIndex?: number, activeUser: string }) => {
+  const [list, setList] = useState<any[]>([]);
+  const [newDream, setNewDream] = useState('');
+
+  useEffect(() => {
+    const unsub = syncDreams(
+      (dreams) => setList(dreams),
+      (err) => console.error("Dream sync failed", err)
+    );
+    return () => unsub();
+  }, []);
+
+  const handleAddDream = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newDream.trim()) return;
+    
+    sounds.sparkleChime();
+    const colors = ["#EBC2C6", "#B7E3E0", "#D6C2E8", "#E8D5A3", "#F3A1A1", "#A6C1EE"];
+    const randomColor = colors[list.length % colors.length];
+    
+    await addDream(newDream.trim(), randomColor, activeUser);
+    setNewDream('');
+  };
+
+  const handleToggleDream = async (id: string, currentStatus: boolean) => {
+    if (!currentStatus) sounds.sparkleChime();
+    else sounds.clickSound();
+    await toggleDream(id, !currentStatus);
+  };
+  
+  const handleArchive = async (id: string) => {
+     sounds.clickSound();
+     await deleteDream(id);
+  };
 
   return (
-    <GlassCard>
-      <h3 className="text-[16px] font-bold mb-1">Impian Kita</h3>
-      <p className="text-[12px] text-[#9A9AB0] mb-5">5 hal yang ingin dilakukan bersama</p>
-      <div className="space-y-3">
-        {list.map((it, i) => (
-          <div 
-            key={i} 
-            className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0 cursor-pointer" 
-            onClick={() => {
-              const nl = [...list]; 
-              const newDone = !nl[i].done;
-              nl[i].done = newDone;
-              setList(nl);
-              if (newDone) {
-                sounds.sparkleChime();
-              } else {
-                sounds.clickSound();
-              }
-            }}
-          >
-            <motion.div whileTap={{ scale: 0.9 }} className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors" style={it.done ? { background: `linear-gradient(135deg, ${it.color}, #D6C2E8)`, borderColor: 'transparent' } : { borderColor: `${it.color}60`, background: 'transparent' }}>
-              {it.done && <Check size={12} className="text-white" />}
+    <GlassCard delayIndex={delayIndex}>
+      <div className="flex justify-between items-start mb-1">
+        <div>
+          <h3 className="text-[16px] font-bold">Impian Kita ✨</h3>
+          <p className="text-[12px] text-[#9A9AB0]">Daftar impian dan harapan indah berdua (Cloud Synced)</p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className="text-[11px] font-mono font-bold text-[#EBC2C6] bg-[#EBC2C6]/10 px-2.5 py-1 rounded-full border border-[#EBC2C6]/20 shadow-sm shadow-pink-500/5 uppercase">
+            {list.filter(x => x.done).length} / {list.length} Tercapai
+          </span>
+        </div>
+      </div>
+
+      <form onSubmit={handleAddDream} className="flex gap-2 my-4">
+        <input
+          type="text"
+          value={newDream}
+          onChange={(e) => setNewDream(e.target.value)}
+          placeholder="Tulis impian baru kita di sini..."
+          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-[#EBC2C6]/50 transition-colors"
+        />
+        <button
+          type="submit"
+          disabled={!newDream.trim()}
+          className="px-4 py-2 bg-gradient-to-r from-[#EBC2C6] to-[#D6C2E8] disabled:from-white/5 disabled:to-white/5 disabled:border-white/5 disabled:text-white/20 hover:opacity-90 active:scale-95 text-[#1A0A0C] font-bold text-xs rounded-xl border border-white/5 shadow transition-all cursor-pointer select-none"
+        >
+          Simpan ✨
+        </button>
+      </form>
+
+      {list.length === 0 ? (
+        <div className="text-center py-6 border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+          <p className="text-[12px] text-white/40 italic">Belum ada daftar impian kita. Mari buat satu! 🥰</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 scrollbar-thin">
+          {list.map((it) => (
+            <motion.div 
+              key={it.id} 
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="group flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.03] border border-transparent hover:border-white/5 transition-all cursor-pointer" 
+              onClick={() => handleToggleDream(it.id, it.done)}
+            >
+              <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                <div 
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${it.done ? 'bg-[#EBC2C6] border-[#EBC2C6]' : 'border-white/20'}`}
+                  style={{ borderColor: it.done ? 'var(--accent-pink)' : it.color }}
+                >
+                  {it.done && <Check size={12} className="text-black" />}
+                </div>
+                <span className={`text-[13px] font-medium truncate ${it.done ? 'text-[#9A9AB0] line-through' : 'text-white'}`}>
+                  {it.text}
+                </span>
+                {it.userId && (
+                   <span className="text-[8px] px-1 bg-white/10 rounded-sm text-[#EBC2C6]/60 font-mono uppercase shrink-0">{it.userId}</span>
+                )}
+              </div>
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleArchive(it.id); }}
+                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-500/10 rounded-lg text-[#9A9AB0] hover:text-rose-400 transition-all cursor-pointer"
+              >
+                <Trash2 size={13} />
+              </button>
             </motion.div>
-            <span className={`text-[13px] flex-1 transition-all ${it.done ? 'line-through text-[#5A5A70]' : 'text-white'}`}>{it.text}</span>
-            <div className="w-[6px] h-[6px] rounded-full shrink-0" style={{ background: it.color }} />
-          </div>
-        ))}
-      </div>
-      <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
-        <span className="text-[11px] font-bold text-[#EBC2C6]">{list.filter(x=>x.done).length} / 5 TERCAPAI</span>
-        <button className="px-4 py-1.5 rounded-full border border-[#EBC2C6]/30 text-[#EBC2C6] text-[11px] font-bold hover:bg-[#EBC2C6]/10 transition-colors">Lihat Semua</button>
-      </div>
+          ))}
+        </div>
+      )}
     </GlassCard>
   );
 };
 
 // 12. ScoreSummary
-const ScoreSummary = ({ scores }: { scores: GameScores }) => {
+const ScoreSummary = ({ scores, delayIndex = 0 }: { scores: GameScores, delayIndex?: number }) => {
   return (
-    <GlassCard className="cursor-pointer" onClick={() => sounds.gameCoin()}>
+    <GlassCard delayIndex={delayIndex} className="cursor-pointer" onClick={() => sounds.gameCoin()}>
       <h3 className="text-[16px] font-bold mb-4">Rekap Petualangan</h3>
       <div className="space-y-0">
         {[
@@ -1322,7 +2477,102 @@ const ActivePartnerSwitchHeader = ({ activeUser, onSwitchUser }: { activeUser: '
 };
 
 // 12b. MoodSelector (Real-time DB-Synced)
-export const MoodSelector = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' }) => {
+const MoodGridCalendar = ({ currentMoodLogs, activeUser }: { currentMoodLogs: any[], activeUser: string }) => {
+  const [viewDate, setViewDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
+  
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const moodMap = React.useMemo(() => {
+    const map: {[key: string]: any[]} = {};
+    currentMoodLogs.forEach(log => {
+      const d = log.dateStr;
+      if (!map[d]) map[d] = [];
+      map[d].push(log);
+    });
+    return map;
+  }, [currentMoodLogs]);
+
+  const days = daysInMonth(viewDate.getMonth(), viewDate.getFullYear());
+  const startDay = firstDayOfMonth(viewDate.getMonth(), viewDate.getFullYear());
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mt-6">
+      <div className="flex items-center justify-between mb-4 px-1">
+        <h4 className="text-[11px] font-bold text-[#EBC2C6] uppercase tracking-[0.2em]">{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</h4>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="p-1 hover:bg-white/10 rounded-full text-white/50"><ChevronLeft size={14}/></button>
+          <button type="button" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="p-1 hover:bg-white/10 rounded-full text-white/50"><ChevronRight size={14}/></button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+        {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((d, i) => <span key={`${d}-${i}`} className="text-[9px] text-[#9A9AB0] font-bold">{d}</span>)}
+      </div>
+      
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: startDay }).map((_, i) => <div key={`e-${i}`} />)}
+        {Array.from({ length: days }).map((_, i) => {
+          const d = i + 1;
+          const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), d);
+          const dateStr = date.toDateString();
+          const moods = moodMap[dateStr] || [];
+          const isToday = date.toDateString() === new Date().toDateString();
+          
+          return (
+            <motion.button
+              key={d}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setSelectedDate(date)}
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center border transition-all ${isToday ? 'border-[#EBC2C6] bg-[#EBC2C6]/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}
+            >
+              <span className={`text-[9px] mb-0.5 ${isToday ? 'text-[#EBC2C6] font-bold' : 'text-[#9A9AB0]'}`}>{d}</span>
+              <div className="flex -space-x-1.5 h-3 items-center">
+                {moods.slice(0, 2).map((m) => (
+                  <span key={m.label} className="text-[11px] drop-shadow-sm">{m.mood}</span>
+                ))}
+                {moods.length > 2 && <span className="text-[7px] text-[#EBC2C6] font-bold ml-0.5">+{moods.length - 2}</span>}
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {selectedDate && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+            className="mt-4 p-3 bg-[#EBC2C6]/10 border border-[#EBC2C6]/20 rounded-xl"
+          >
+             <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold text-[#EBC2C6]">{selectedDate.toLocaleDateString('id-ID', { day:'numeric', month:'long' })}</span>
+                <button type="button" onClick={() => setSelectedDate(null)}><X size={12} className="text-[#9A9AB0]"/></button>
+             </div>
+             <div className="space-y-2">
+                {(moodMap[selectedDate.toDateString()] || []).map((m, idx) => (
+                  <div key={`${m.dateStr}-${idx}`} className="flex gap-2 items-start">
+                    <span className="text-sm shrink-0">{m.mood}</span>
+                    <div>
+                      <div className="text-[9px] font-bold" style={{ color: m.color }}>{m.userId} • {m.label}</div>
+                      <p className="text-[10px] text-[#F5F5F5] leading-tight italic">"{m.note}"</p>
+                    </div>
+                  </div>
+                ))}
+                {(!moodMap[selectedDate.toDateString()] || moodMap[selectedDate.toDateString()].length === 0) && (
+                  <p className="text-[10px] text-[#9A9AB0] text-center py-2 italic font-mono uppercase tracking-tighter">Tidak ada catatan mood</p>
+                )}
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export const MoodSelector = ({ activeUser, delayIndex = 0 }: { activeUser: 'Nauraa' | 'Farsya', delayIndex?: number }) => {
   const [currentMoodLogs, setCurrentMoodLogs] = useState<any[]>([]);
   const [note, setNote] = useState('');
   const [isSyncing, setIsSyncing] = useState(true);
@@ -1379,7 +2629,7 @@ export const MoodSelector = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' }
   const farsyaLatest = currentMoodLogs.find(l => l.userId === 'Farsya');
 
   return (
-    <GlassCard className="relative overflow-hidden">
+    <GlassCard delayIndex={delayIndex} className="relative overflow-hidden">
       {/* Saving State Loader Overlay */}
       {isSaving && (
         <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-35 rounded-[24px]">
@@ -1445,9 +2695,9 @@ export const MoodSelector = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' }
             </p>
 
             <div className="grid grid-cols-3 gap-2">
-              {moods.map((m) => (
+              {moods.map((m, idx) => (
                 <motion.button
-                  key={m.label}
+                  key={`${m.label}-${idx}`}
                   whileHover={{ scale: 1.05, translateY: -1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleSelectMood(m)}
@@ -1474,23 +2724,7 @@ export const MoodSelector = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' }
           </div>
 
           {currentMoodLogs.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-white/5">
-              <span className="text-[10px] font-bold text-[#5A5A70] uppercase tracking-wider block mb-2.5">Histori Perasaan</span>
-              <div className="flex gap-2 pb-1 overflow-x-auto scrollbar-none snap-x">
-                {currentMoodLogs.slice(0, 10).map((log, idx) => (
-                  <motion.div 
-                    key={idx} 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }}
-                    className="shrink-0 snap-align bg-white/5 border border-white/10 rounded-[16px] p-2 min-w-[95px] text-center flex flex-col items-center justify-center"
-                  >
-                    <span className="text-lg">{log.mood}</span>
-                    <span className="text-[9px] font-bold text-white/70 block truncate max-w-full">{log.label}</span>
-                    <span className="text-[7px] text-white/40 mt-0.5 font-mono">by {log.userId}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+            <MoodGridCalendar currentMoodLogs={currentMoodLogs} activeUser={activeUser} />
           )}
         </>
       )}
@@ -1519,7 +2753,7 @@ const formatMsgDate = (date: any) => {
 };
 
 // 12c. ChatComponent (Real-time DB-Synced Chat & Voice Notes with Cloud Storage)
-export const ChatComponent = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' }) => {
+export const ChatComponent = ({ activeUser, delayIndex = 0 }: { activeUser: 'Nauraa' | 'Farsya', delayIndex?: number }) => {
   const [messages, setMessages] = useState<any[]>([]);
   const [textInput, setTextInput] = useState('');
   
@@ -1636,11 +2870,9 @@ export const ChatComponent = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' 
         }
       }
 
-      if (!mimeType) {
-        mimeType = 'audio/mp4'; // Default to mp4 for modern safari/mobile
-      }
-
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      // Initialize recorder using supported MIME or let browser decide defaults
+      const recorderOptions = mimeType ? { mimeType } : undefined;
+      const recorder = new MediaRecorder(stream, recorderOptions);
       const chunks: Blob[] = [];
 
       recorder.ondataavailable = (e) => {
@@ -1657,22 +2889,29 @@ export const ChatComponent = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' 
             const url = await uploadVoiceNoteToStorage(audioBlob);
             setVoiceUrl(url);
           } else {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64Data = reader.result as string;
-              setAudioBase64(base64Data);
-            };
-            reader.readAsDataURL(audioBlob);
+            await new Promise<void>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64Data = reader.result as string;
+                setAudioBase64(base64Data);
+                resolve();
+              };
+              reader.readAsDataURL(audioBlob);
+            });
           }
           setMicFeedback("✅ VN Siap!");
         } catch (e) {
           console.warn("Storage upload failed, falling back to local base64.", e);
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Data = reader.result as string;
-            setAudioBase64(base64Data);
-          };
-          reader.readAsDataURL(audioBlob);
+          await new Promise<void>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64Data = reader.result as string;
+              setAudioBase64(base64Data);
+              resolve();
+            };
+            reader.readAsDataURL(audioBlob);
+          });
+          setMicFeedback("✅ VN Siap! (Offline Mode)");
         } finally {
           setIsUploading(false);
           setTimeout(() => setMicFeedback(''), 3000);
@@ -1752,7 +2991,7 @@ export const ChatComponent = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' 
   const hasVoiceNotes = messages.some(m => m.voiceBase64 || m.voiceUrl);
 
   return (
-    <GlassCard className="flex flex-col h-[400px] relative">
+    <GlassCard delayIndex={delayIndex} className="flex flex-col h-[400px] relative">
       <div className="flex justify-between items-center pb-2 border-b border-white/5 mb-3">
         <h3 className="text-[14px] font-bold flex items-center gap-2">
           <Mic size={14} className="text-[#EBC2C6]" />
@@ -1933,7 +3172,7 @@ export const ChatComponent = ({ activeUser }: { activeUser: 'Nauraa' | 'Farsya' 
 const LoveChatRoom = ChatComponent;
 
 // 12b. LoveLetterDraft
-const LoveLetterDraft = () => {
+const LoveLetterDraft = ({ delayIndex = 0, activeUser }: { delayIndex?: number, activeUser: string }) => {
   const [letterContent, setLetterContent] = useState('');
   const [paperTheme, setPaperTheme] = useState('pink');
   const [fontStyle, setFontStyle] = useState('romantis');
@@ -1975,46 +3214,24 @@ const LoveLetterDraft = () => {
   };
 
   useEffect(() => {
-    const savedCode = localStorage.getItem('love_letter_draft');
-    if (savedCode) {
-      try {
-        const parsed = JSON.parse(savedCode);
-        setLetterContent(parsed.content || '');
-        setPaperTheme(parsed.paperTheme || 'pink');
-        setFontStyle(parsed.fontStyle || 'romantis');
-        setSeal(parsed.seal || '💖');
-      } catch (e) {}
-    } else {
-      setLetterContent(
-        "Untuk kekasihku tercinta,\n\n" +
-        "Setiap detik perjalanan ini membuatku semakin mengerti arti rasa syukur.\n" +
-        "Masih ingatkah kamu saat pertama kali kita berbagi lagu?\n" +
-        "Aku ingin selalu bersamamu, merajut asa kita hari demi hari.\n\n" +
-        "Dengan penuh kasih sayang,\n" +
-        "Aku."
-      );
-    }
-  }, []);
+    const unsub = syncLoveLetter(activeUser, (content) => {
+      setLetterContent(content);
+    });
+    return () => unsub();
+  }, [activeUser]);
 
-  const handleSave = () => {
-    sounds.clickSound();
-    const dataToSave = {
-      content: letterContent,
-      paperTheme,
-      fontStyle,
-      seal,
-      savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    localStorage.setItem('love_letter_draft', JSON.stringify(dataToSave));
-    sounds.successSound();
-    setSaveStatus(`Tersimpan jam ${dataToSave.savedAt}`);
-    setTimeout(() => setSaveStatus(''), 3000);
+  const handleSave = async () => {
+    setSaveStatus('Saving to Cloud...');
+    sounds.sparkleChime();
+    await saveLoveLetter(activeUser, letterContent);
+    setTimeout(() => setSaveStatus('All changes saved! ✨'), 1500);
+    setTimeout(() => setSaveStatus(''), 4000);
   };
 
   const currentPaper = papers[paperTheme] || papers.pink;
 
   return (
-    <GlassCard>
+    <GlassCard delayIndex={delayIndex}>
       <div className="flex justify-between items-center mb-1">
         <h3 className="text-[16px] font-bold">Draf Surat Cinta</h3>
         <button 
@@ -2139,9 +3356,29 @@ const LoveLetterDraft = () => {
 };
 
 // 13. FinalMessage
-const FinalMessage = ({ days, onRestart }: { days: number, onRestart: () => void }) => {
+const FinalMessage = ({ days, onRestart, anniversaryDate, delayIndex = 0 }: { days: number, onRestart: () => void, anniversaryDate: Date, delayIndex?: number }) => {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    setRevealed(false);
+    const raf = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        setRevealed(true);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [delayIndex]);
+
+  const formattedAnniv = anniversaryDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   return (
-    <div className="w-full pt-8 pb-10 px-6 text-center relative" style={{ background: 'radial-gradient(ellipse at top, rgba(235,194,198,0.08) 0%, transparent 70%)' }}>
+    <div 
+      className={`w-full pt-8 pb-10 px-6 text-center relative transition-all duration-[750ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        revealed ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-[0.98]'
+      }`}
+      style={{ 
+        background: 'radial-gradient(ellipse at top, rgba(235,194,198,0.08) 0%, transparent 70%)',
+        transitionDelay: `${delayIndex * 80}ms`
+      }}
+    >
       <motion.div animate={{ scale: [1, 1.08, 1], rotate: [0, 2, -2, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} className="mx-auto w-[64px] h-[64px] flex justify-center items-center rounded-full bg-[#EBC2C6]/10 mb-8 border border-[#EBC2C6]/20 shadow-[0_0_30px_rgba(235,194,198,0.15)]">
         <Heart size={32} className="text-[#EBC2C6] fill-[#EBC2C6]" />
       </motion.div>
@@ -2149,7 +3386,7 @@ const FinalMessage = ({ days, onRestart }: { days: number, onRestart: () => void
         Cerita Kita Belum Selesai
       </h2>
       <div className="text-[14px] text-[#9A9AB0] leading-[1.9] max-w-[340px] mx-auto space-y-5">
-        <p>Sejak 24 Maret 2026, setiap hari ada satu alasan baru untuk bersyukur — dan alasan itu selalu berujung pada nama yang sama.</p>
+        <p>Sejak {formattedAnniv}, setiap hari ada satu alasan baru untuk bersyukur — dan alasan itu selalu berujung pada nama yang sama.</p>
         <p>Kamu tidak perlu sempurna. Kamu hanya perlu hadir, jujur, dan terus memilih satu sama lain setiap harinya.</p>
         <p>Green Day, chat tengah malam, hal-hal kecil yang terasa besar — itu semua milik kita, dan tidak ada yang bisa mengambilnya.</p>
         <p className="text-[#EBC2C6] font-medium pt-2">Ini bukan akhir. Ini halaman pertama.</p>
@@ -2181,26 +3418,24 @@ const FinalMessage = ({ days, onRestart }: { days: number, onRestart: () => void
   );
 };
 
-const BottomNav = ({ active }: { active: string }) => (
+const BottomNav = ({ active, onNav }: { active: string, onNav: (id: string) => void }) => (
   <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-[rgba(10,10,14,0.92)] backdrop-blur-[20px] border-t border-[rgba(255,255,255,0.06)] z-50 flex justify-around items-center px-4 max-w-[480px] mx-auto pb-[max(10px,env(safe-area-inset-bottom))] pt-[10px]">
     {[
-      { id: 'hero', icon: <Heart size={20} strokeWidth={active === 'hero' ? 2 : 1.5} />, label: 'Hero' },
-      { id: 'profile', icon: <Star size={20} strokeWidth={active === 'profile' ? 2 : 1.5} />, label: 'Profil' },
+      { id: 'hero', icon: <Heart size={20} strokeWidth={active === 'hero' ? 2 : 1.5} />, label: 'Home' },
+      { id: 'profile', icon: <Star size={20} strokeWidth={active === 'profile' ? 2 : 1.5} />, label: 'Hubungan' },
       { id: 'gallery', icon: <ImageIcon size={20} strokeWidth={active === 'gallery' ? 2 : 1.5} />, label: 'Galeri' },
       { id: 'memories', icon: <Clock size={20} strokeWidth={active === 'memories' ? 2 : 1.5} />, label: 'Kenangan' },
     ].map(item => {
       const isActive = active === item.id;
       return (
-        <motion.a 
+        <motion.button 
           key={item.id}
-          href={`#${item.id}`} 
           whileTap={{ scale: 0.88 }}
-          className="flex-1 flex flex-col items-center justify-center gap-[3px] text-center"
-          onClick={(e) => {
-            e.preventDefault();
+          className="flex-1 flex flex-col items-center justify-center gap-[3px] text-center bg-transparent border-none outline-none"
+          onClick={() => {
             sounds.clickSound();
-            const el = document.getElementById(item.id);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
+            onNav(item.id);
+            window.scrollTo({ top: 0, behavior: 'instant' });
           }}
         >
           <div className={`${isActive ? 'text-[#EBC2C6] fill-none stroke-[#EBC2C6]' : 'text-white/30 stroke-white/30 fill-none'}`}>
@@ -2208,11 +3443,336 @@ const BottomNav = ({ active }: { active: string }) => (
           </div>
           <span className={`text-[10px] font-medium ${isActive ? 'text-[#EBC2C6]' : 'text-white/30'}`}>{item.label}</span>
           {isActive && <motion.div layoutId="nav-dot" className="w-1 h-1 bg-[#EBC2C6] rounded-full mt-0.5 absolute bottom-1" />}
-        </motion.a>
+        </motion.button>
       );
     })}
   </div>
 );
+
+// 18. CalendarSchedules
+const CalendarSchedules = ({ delayIndex = 0, activeUser }: { delayIndex?: number, activeUser: string }) => {
+  const [schedules, setSchedules] = useState<{ id?: string; date: string; title: string; location?: string }[]>([]);
+  const [showConfig, setShowConfig] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [newLoc, setNewLoc] = useState('');
+
+  useEffect(() => {
+    const unsub = syncSchedules(
+      (list) => setSchedules(list),
+      (err) => console.error(err)
+    );
+    return () => unsub();
+  }, []);
+
+  const handleAdd = async () => {
+    if (newDate && newTitle) {
+      sounds.sparkleChime();
+      await addSchedule(newDate, newTitle, newLoc, activeUser);
+      setNewDate('');
+      setNewTitle('');
+      setNewLoc('');
+      setShowConfig(false);
+    }
+  };
+
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
+    sounds.clickSound();
+    await deleteDoc(doc(db, 'schedules', id));
+  };
+
+  const sorted = [...schedules].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const getUpcomingAlerts = () => {
+    const alerts: { date: Date; diffDays: number; type: 'birthday' | 'anniversary'; label: string; icon: string }[] = [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    // 1. Monthly Anniversary on the 24th of every month
+    let nextAnniv = new Date(today.getFullYear(), today.getMonth(), 24);
+    if (nextAnniv.getTime() < today.getTime()) {
+      nextAnniv = new Date(today.getFullYear(), today.getMonth() + 1, 24);
+    }
+    const diffAnniv = Math.round((nextAnniv.getTime() - today.getTime()) / 86400000);
+    if (diffAnniv <= 30) {
+      alerts.push({
+        date: nextAnniv,
+        diffDays: diffAnniv,
+        type: 'anniversary',
+        label: `Monthly Anniversary (${nextAnniv.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })})`,
+        icon: '💖'
+      });
+    }
+
+    // 2. Birthday Nauraa (March 16)
+    let nextNauraBday = new Date(today.getFullYear(), 2, 16);
+    if (nextNauraBday.getTime() < today.getTime()) {
+      nextNauraBday = new Date(today.getFullYear() + 1, 2, 16);
+    }
+    const diffNaura = Math.round((nextNauraBday.getTime() - today.getTime()) / 86400000);
+    if (diffNaura <= 30) {
+      alerts.push({
+        date: nextNauraBday,
+        diffDays: diffNaura,
+        type: 'birthday',
+        label: `Hari Ulang Tahun Nauraa Rayyani Ayu 🌸 (${nextNauraBday.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })})`,
+        icon: '🌸'
+      });
+    }
+
+    // 3. Birthday Farsya (January 17)
+    let nextFarsyaBday = new Date(today.getFullYear(), 0, 17);
+    if (nextFarsyaBday.getTime() < today.getTime()) {
+      nextFarsyaBday = new Date(today.getFullYear() + 1, 0, 17);
+    }
+    const diffFarsya = Math.round((nextFarsyaBday.getTime() - today.getTime()) / 86400000);
+    if (diffFarsya <= 30) {
+      alerts.push({
+        date: nextFarsyaBday,
+        diffDays: diffFarsya,
+        type: 'birthday',
+        label: `Hari Ulang Tahun Farsya Zahri ⚡ (${nextFarsyaBday.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })})`,
+        icon: '⚡'
+      });
+    }
+
+    return alerts.sort((a,b) => a.diffDays - b.diffDays);
+  };
+
+  const upcomingAlerts = getUpcomingAlerts();
+
+  return (
+    <GlassCard delayIndex={delayIndex} className="border border-white/5 bg-[#0A0A0E]/60 min-h-[300px]">
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h3 className="text-[16px] font-bold text-white flex items-center gap-2 tracking-tight">
+            <Calendar size={16} className="text-[#EBC2C6]" /> Jadwal & Kalender Kita
+          </h3>
+          <p className="text-[10px] text-white/50 tracking-wider font-light mt-1 uppercase">Upcoming Events Together</p>
+        </div>
+        <button 
+          onClick={() => setShowConfig(!showConfig)}
+          className="text-[20px] text-[#EBC2C6] w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:bg-white/10"
+        >
+          {showConfig ? '×' : '+'}
+        </button>
+      </div>
+
+      {/* Alert / Notification system highlights */}
+      {upcomingAlerts.length > 0 && (
+        <div className="mb-5 space-y-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#EBC2C6] tracking-wider uppercase">
+            <Sparkles size={11} className="text-yellow-300 animate-pulse" /> Pengingat Hari Spesial Kita 💕
+          </div>
+          {upcomingAlerts.map((alert, idx) => (
+            <motion.div 
+              key={idx}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="p-3 rounded-xl bg-gradient-to-r from-pink-500/15 via-purple-500/10 to-transparent border border-pink-500/20 flex items-center justify-between shadow-[0_0_15px_rgba(235,194,198,0.1)]"
+            >
+              <div className="flex items-center gap-2 w-full overflow-hidden">
+                <span className="text-[18px]">{alert.icon}</span>
+                <div className="flex flex-col truncate">
+                  <span className="text-[11px] font-bold text-white leading-normal truncate">{alert.label}</span>
+                  <span className="text-[9px] text-[#EBC2C6]/80 font-mono tracking-wider uppercase">
+                    {alert.diffDays === 0 ? "HARI INI! 🎉" : `${alert.diffDays} Hari Lagi ✨`}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showConfig && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-5">
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-black/40 border border-[#EBC2C6]/10">
+              <input 
+                type="date" 
+                value={newDate} 
+                onChange={e => setNewDate(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#EBC2C6]/50"
+              />
+              <input 
+                type="text" 
+                value={newTitle} 
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="Rencana kegiatan..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#EBC2C6]/50"
+              />
+              <input 
+                type="text" 
+                value={newLoc} 
+                onChange={e => setNewLoc(e.target.value)}
+                placeholder="Lokasi (Opsional)..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#EBC2C6]/50"
+              />
+              <button onClick={handleAdd} className="w-full py-2 bg-[#EBC2C6]/20 text-[#EBC2C6] text-xs font-bold rounded-lg border border-[#EBC2C6]/30 hover:bg-[#EBC2C6]/30 transition-colors">
+                Tambah Jadwal
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="space-y-3">
+        {sorted.map((s, i) => {
+          const sDate = new Date(s.date);
+          const isPast = sDate.getTime() < Date.now();
+          return (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className={`p-3 rounded-2xl border ${isPast ? 'bg-white/5 border-white/5' : 'bg-gradient-to-r from-pink-500/10 to-transparent border-pink-500/20'} relative flex items-center justify-between group`}
+            >
+              <div className="flex items-center gap-3">
+                 <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-lg ${isPast ? 'bg-white/10 text-white/40' : 'bg-gradient-to-b from-[#EBC2C6] to-[#D6C2E8] text-black'} font-bold`}>
+                   <span className="text-[10px] leading-tight uppercase relative -bottom-1">{sDate.toLocaleString('default', { month: 'short' })}</span>
+                   <span className="text-[18px] leading-tight font-black">{sDate.getDate()}</span>
+                 </div>
+                 <div className="flex flex-col gap-1">
+                   <span className={`text-[12px] font-bold ${isPast ? 'text-white/40 line-through' : 'text-white'}`}>{s.title}</span>
+                   <span className={`text-[10px] font-mono tracking-widest uppercase flex items-center gap-1 ${isPast ? 'text-white/20' : 'text-[#EBC2C6]/70'}`}>
+                     <MapPin size={10} /> {s.location || 'Spontan'}
+                   </span>
+                 </div>
+              </div>
+              
+              <button onClick={() => handleDelete(s.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-white/30 hover:text-red-400">
+                <Trash2 size={16} />
+              </button>
+            </motion.div>
+          );
+        })}
+        {sorted.length === 0 && <p className="text-center text-white/40 text-xs py-10">Belum ada jadwal. Yuk buat rencana bersama! ✨</p>}
+      </div>
+    </GlassCard>
+  );
+};
+
+// ThemeSelector component to choose dynamic romantic color palettes
+const ThemeSelector = ({ activeThemeId, onChangeTheme, delayIndex = 0 }: { activeThemeId: string; onChangeTheme: (id: string) => void, delayIndex?: number }) => {
+  return (
+    <GlassCard delayIndex={delayIndex}>
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles size={15} className="text-[#EBC2C6] animate-[spin_8s_linear_infinite]" />
+        <h3 className="text-[15px] font-bold text-white">Nuansa Warna Cinta</h3>
+      </div>
+      <p className="text-[11px] text-[#9A9AB0] mb-4">Pilih warna romantis yang paling menggambarkan kisah indah kalian berdua.</p>
+      
+      <div className="grid grid-cols-2 gap-2.5">
+        {THEMES.map(theme => {
+          const isActive = theme.id === activeThemeId;
+          return (
+            <motion.button
+              key={theme.id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                sounds.sparkleChime();
+                onChangeTheme(theme.id);
+              }}
+              className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex flex-col justify-between h-[96px] ${isActive ? 'bg-[#EBC2C6]/15 border-[#EBC2C6] shadow-[0_0_15px_rgba(235,194,198,0.25)]' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'}`}
+            >
+              <div>
+                <span className="text-xs font-bold text-white block truncate">{theme.name}</span>
+                <span className="text-[9px] text-[#9A9AB0] block leading-tight mt-0.5 line-clamp-2">{theme.desc}</span>
+              </div>
+              
+              {/* Palette dots */}
+              <div className="flex gap-1.5 mt-2">
+                {theme.colors.map((c, i) => (
+                  <div key={i} className="w-3 h-3 rounded-full border border-white/10 shadow-sm" style={{ backgroundColor: c }} />
+                ))}
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+    </GlassCard>
+  );
+};
+
+const exportTimelineAsJSON = (data: any[]) => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `love_journey_timeline_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const SettingsPanel = ({ delayIndex = 0 }: { delayIndex?: number }) => {
+  const [notifications, setNotifications] = useState(() => localStorage.getItem('love_notifications_enabled') === 'true');
+  
+  const handleToggleNotifications = async () => {
+    if (!notifications) {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            setNotifications(true);
+            localStorage.setItem('love_notifications_enabled', 'true');
+            new Notification("Notifikasi Aktif!", { body: "Kamu akan menerima pengingat untuk momen penting kita. ❤️" });
+        }
+      }
+    } else {
+      setNotifications(false);
+      localStorage.setItem('love_notifications_enabled', 'false');
+    }
+  };
+
+  return (
+    <GlassCard delayIndex={delayIndex} className="p-6">
+      <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+        <Settings size={20} className="text-[#EBC2C6]" /> Pengaturan Aplikasi
+      </h3>
+      
+      <div className="space-y-6">
+        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+          <div>
+            <h4 className="text-sm font-semibold text-white">Notifikasi Browser</h4>
+            <p className="text-[11px] text-[#9A9AB0] mt-1">Dapatkan pengingat untuk milestone dan mimpi kita.</p>
+          </div>
+          <button 
+            type="button"
+            onClick={handleToggleNotifications}
+            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 relative ${notifications ? 'bg-[#EBC2C6]' : 'bg-white/10'}`}
+          >
+            <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${notifications ? 'translate-x-6' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-3 mb-2">
+             <div className="p-2 bg-indigo-500/10 rounded-lg">
+                <Wifi size={18} className="text-indigo-400" />
+             </div>
+             <div>
+                <h4 className="text-sm font-semibold text-white">Sinkronisasi Cloud</h4>
+                <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isFirebaseLive ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+                    <span className="text-[11px] text-[#9A9AB0]">
+                    {isFirebaseLive ? 'Online - Semua data aman' : 'Lokal - Data hanya di HP ini'}
+                    </span>
+                </div>
+             </div>
+          </div>
+          {isFirebaseLive && (
+             <p className="text-[10px] text-[#9A9AB0]/70 mt-2 italic border-t border-white/5 pt-2">
+                "Cintaku kepadamu tidak terbatas oleh ruang, apalagi cuma kuota data."
+             </p>
+          )}
+        </div>
+      </div>
+    </GlassCard>
+  );
+};
 
 // ----------------------------------------------------------------------
 // MAIN EXPORT
@@ -2225,10 +3785,28 @@ export const S_CoupleProfile: React.FC<S_CoupleProfileProps> = ({
   const [activeNav, setActiveNav] = useState('hero');
   const prevActiveNav = useRef('hero');
 
+  const setProfileActiveTab = useAppStore(state => state.setProfileActiveTab);
+  useEffect(() => {
+    setProfileActiveTab(activeNav);
+  }, [activeNav, setProfileActiveTab]);
+
   const [activeUser, setActiveUser] = useState<'Nauraa' | 'Farsya'>(() => {
     const saved = localStorage.getItem('love_active_partner');
     return (saved === 'Nauraa' || saved === 'Farsya') ? saved : 'Nauraa';
   });
+
+  const [anniversaryDate, setAnniversaryDate] = useState<Date>(() => {
+    const saved = localStorage.getItem('love_anniversary_date');
+    return saved ? new Date(saved) : RELATIONSHIP.startDate;
+  });
+
+  const handleAnniversaryChange = (newDateStr: string) => {
+    const parsed = new Date(newDateStr);
+    if (!isNaN(parsed.getTime())) {
+      setAnniversaryDate(parsed);
+      localStorage.setItem('love_anniversary_date', parsed.toISOString());
+    }
+  };
 
   const handleSwitchUser = (user: 'Nauraa' | 'Farsya') => {
     setActiveUser(user);
@@ -2236,12 +3814,58 @@ export const S_CoupleProfile: React.FC<S_CoupleProfileProps> = ({
     sounds.heartbeat();
   };
 
+  const [activeThemeId, setActiveThemeId] = useState(() => {
+    return localStorage.getItem('love_journey_theme_id') || 'amour';
+  });
+
+  const handleThemeChange = (id: string) => {
+    setActiveThemeId(id);
+    localStorage.setItem('love_journey_theme_id', id);
+  };
+
+  useEffect(() => {
+    const found = THEMES.find(t => t.id === activeThemeId) || THEMES[0];
+    Object.entries(found.vars).forEach(([key, val]) => {
+      document.documentElement.style.setProperty(key, val);
+    });
+  }, [activeThemeId]);
+
   const [lightboxState, setLightboxState] = useState<{
     list: { u: string; l: string; c?: string }[];
     index: number;
   } | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const [imgShareCopied, setImgShareCopied] = useState(false);
   const lightboxContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleShareCurrentImage = async () => {
+    if (!lightboxState) return;
+    const activeImg = lightboxState.list[lightboxState.index];
+    const text = activeImg.c || activeImg.l || 'Kenangan Indah Nauraa & Farsya';
+    const link = activeImg.u;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Memori Cinta - Nauraa & Farsya',
+          text: `${text} 💕`,
+          url: link,
+        });
+        sounds.successSound();
+      } catch (err) {
+        console.warn(err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${text}\n${link}`);
+        sounds.successSound();
+        setImgShareCopied(true);
+        setTimeout(() => setImgShareCopied(false), 2000);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  };
   
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -2265,119 +3889,161 @@ export const S_CoupleProfile: React.FC<S_CoupleProfileProps> = ({
   }, [activeNav]);
 
   useEffect(() => {
-    const sections = ['hero', 'profile', 'gallery', 'memories'];
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setActiveNav(entry.target.id);
-        }
-      });
-    }, { root: document.getElementById('main-scroll'), rootMargin: '-40% 0px -40% 0px', threshold: 0 });
-
-    sections.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
+    // We don't need scroll observer anymore, activeNav holds the true view state.
+    // Clean component returns
   }, []);
 
-  const days = Math.floor((now.getTime() - RELATIONSHIP.startDate.getTime()) / 86400000);
+  const days = Math.floor((now.getTime() - anniversaryDate.getTime()) / 86400000);
 
   const handleOpenLightbox = (list: { u: string; l: string; c?: string }[], index: number) => {
     setLightboxState({ list, index });
   };
 
+  const navTabs = [
+    { id: 'hero', label: 'Home' },
+    { id: 'profile', label: 'Hubungan' },
+    { id: 'gallery', label: 'Galeri' },
+    { id: 'memories', label: 'Kenangan' },
+    { id: 'settings', label: 'Set' },
+  ];
+
   return (
     <LightboxContext.Provider value={{ open: handleOpenLightbox }}>
-      <div id="main-scroll" className="fixed inset-0 w-full min-h-screen bg-[#0A0A0E] text-[#F5F5F5] overflow-y-auto overflow-x-hidden z-50 font-sans smooth-scroll pb-12 pb-safe">
+      <div 
+        id="main-scroll" 
+        className="fixed inset-0 w-full min-h-screen text-[#F5F5F5] overflow-y-auto overflow-x-hidden z-50 font-sans smooth-scroll pb-24 pb-safe transition-colors duration-500"
+        style={{ backgroundColor: 'var(--bg-primary)' }}
+      >
+        <style dangerouslySetInnerHTML={{ __html: `
+          /* Dynamic style overrides for raw hex tailwind classes so themes update instantly without reload */
+          .text-\\[\\#EBC2C6\\] { color: var(--accent-pink) !important; }
+          .bg-\\[\\#EBC2C6\\] { background-color: var(--accent-pink) !important; }
+          .border-\\[\\#EBC2C6\\] { border-color: var(--accent-pink) !important; }
+          .shadow-\\[\\#EBC2C6\\] { --tw-shadow-color: var(--accent-pink) !important; }
+          .to-\\[\\#EBC2C6\\] { --tw-gradient-to: var(--accent-pink) !important; }
+          .from-\\[\\#EBC2C6\\] { --tw-gradient-from: var(--accent-pink) !important; }
+          .bg-\\[\\#EBC2C6\\]\\/10 { background-color: rgba(235,194,198, 0.1) !important; }
+          .bg-\\[\\#EBC2C6\\]\\/15 { background-color: rgba(235,194,198, 0.15) !important; }
+
+          .text-\\[\\#D6C2E8\\] { color: var(--accent-lavender) !important; }
+          .bg-\\[\\#D6C2E8\\] { background-color: var(--accent-lavender) !important; }
+          .border-\\[\\#D6C2E8\\] { border-color: var(--accent-lavender) !important; }
+          .to-\\[\\#D6C2E8\\] { --tw-gradient-to: var(--accent-lavender) !important; }
+          .from-\\[\\#D6C2E8\\] { --tw-gradient-from: var(--accent-lavender) !important; }
+
+          .text-\\[\\#B7E3E0\\] { color: var(--accent-mint) !important; }
+          .bg-\\[\\#B7E3E0\\] { background-color: var(--accent-mint) !important; }
+          .border-\\[\\#B7E3E0\\] { border-color: var(--accent-mint) !important; }
+          .to-\\[\\#B7E3E0\\] { --tw-gradient-to: var(--accent-mint) !important; }
+          .from-\\[\\#B7E3E0\\] { --tw-gradient-from: var(--accent-mint) !important; }
+
+          .text-\\[\\#E8D5A3\\] { color: var(--accent-gold) !important; }
+          .bg-\\[\\#E8D5A3\\] { background-color: var(--accent-gold) !important; }
+          .border-\\[\\#E8D5A3\\] { border-color: var(--accent-gold) !important; }
+          .to-\\[\\#E8D5A3\\] { --tw-gradient-to: var(--accent-gold) !important; }
+          .from-\\[\\#E8D5A3\\] { --tw-gradient-from: var(--accent-gold) !important; }
+        ` }} />
         <FloatingHearts />
-        <div className="profile-root relative z-10">
         
-        {/* KOLOM KIRI (Hero, Streak, Profil, Event) */}
-        <div className="col-left flex flex-col gap-[var(--card-gap)]">
-          <ActivePartnerSwitchHeader activeUser={activeUser} onSwitchUser={handleSwitchUser} />
-          <div id="hero" className="scroll-mt-6"><HeroCouple now={now} /></div>
-          
-          <AnimatedSection variant="scaleUp">
-            <div id="profile" className="scroll-mt-6">
-              <StreakCounter now={now} />
-            </div>
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeUp">
-            <ProfileCards now={now} />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="scaleUp">
-            <NextEventCountdown now={now} />
-          </AnimatedSection>
+        <div className="profile-root relative z-10 lg:max-w-4xl lg:mx-auto pt-24 md:pt-28">
+        
+        {/* TOP TAB NAV FOR DESKTOP */}
+        <div className="hidden md:flex bg-white/5 border border-white/10 rounded-full p-1 mx-auto mb-8 w-max max-w-full">
+          {navTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => { sounds.clickSound(); setActiveNav(tab.id); }}
+              className={`px-8 py-3 rounded-full text-xs font-bold tracking-wider uppercase transition-all ${activeNav === tab.id ? 'bg-[#EBC2C6] text-black shadow-[0_0_20px_rgba(235,194,198,0.4)]' : 'text-white/50 hover:text-white/80'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* KOLOM KANAN (Stats, Timeline, Zodiac, Love Lang, Sentiment) */}
-        <div className="col-right flex flex-col gap-[var(--card-gap)]">
-          <AnimatedSection variant="fadeLeft">
-            <RelationshipStats now={now} />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeRight">
-            <MilestoneTimeline now={now} />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeUp">
-            <ZodiacMatch />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeLeft">
-            <LoveLanguage />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeUp">
-            <SentimentLog activeUser={activeUser} />
-          </AnimatedSection>
+        <AnimatePresence mode="wait">
+          {activeNav === 'hero' && (
+            <motion.div 
+              key="hero" 
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="flex flex-col gap-[var(--card-gap)]"
+            >
+              <ActivePartnerSwitchHeader activeUser={activeUser} onSwitchUser={handleSwitchUser} />
+              <HeroCouple now={now} anniversaryDate={anniversaryDate} onDateChange={handleAnniversaryChange} />
+              <DailyAffirmation delayIndex={1} />
+              <StreakCounter now={now} anniversaryDate={anniversaryDate} delayIndex={2} />
+              <ProfileCards now={now} delayIndex={3} />
+              <NextEventCountdown now={now} anniversaryDate={anniversaryDate} delayIndex={4} />
+            </motion.div>
+          )}
 
-          <AnimatedSection variant="fadeUp">
-            <LoveChatRoom activeUser={activeUser} />
-          </AnimatedSection>
-        </div>
+          {activeNav === 'profile' && (
+            <motion.div 
+              key="profile" 
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="flex flex-col gap-[var(--card-gap)]"
+            >
+              <ThemeSelector activeThemeId={activeThemeId} onChangeTheme={handleThemeChange} delayIndex={1} />
+              <RelationshipStats now={now} anniversaryDate={anniversaryDate} delayIndex={2} />
+              <LoveChatRoom activeUser={activeUser} delayIndex={3} />
+              <SentimentLog activeUser={activeUser} delayIndex={4} />
+              <ZodiacMatch delayIndex={5} />
+              <LoveLanguage delayIndex={6} />
+            </motion.div>
+          )}
 
-        {/* KOLOM FULL WIDTH (Galeri, Kenangan, Impian, Loveltrs, Game, Final) */}
-        <div className="col-full flex flex-col gap-[var(--card-gap)]">
-          <AnimatedSection variant="fadeRight">
-            <div id="gallery" className="scroll-mt-6">
-              <PhotoGallery />
-            </div>
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeUp">
-            <MemoryBoard />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="scaleUp">
-            <div id="memories" className="scroll-mt-6">
-              <MemoriesTimeline />
-            </div>
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeLeft">
-            <BucketListPreview />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeUp">
-            <LoveLetterDraft />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="fadeRight">
-            <ScoreSummary scores={gameScores} />
-          </AnimatedSection>
-          
-          <AnimatedSection variant="scaleUp">
-            <FinalMessage days={days} onRestart={onRestart} />
-          </AnimatedSection>
-        </div>
+          {activeNav === 'gallery' && (
+            <motion.div 
+              key="gallery" 
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="flex flex-col gap-[var(--card-gap)] relative"
+            >
+              <PhotoGallery activeUser={activeUser} delayIndex={1} />
+              <MemoryBoard anniversaryDate={anniversaryDate} delayIndex={2} />
+            </motion.div>
+          )}
+
+          {activeNav === 'settings' && (
+            <motion.div 
+              key="settings" 
+              variants={containerVariants}
+              initial="hidden" animate="show" exit="exit"
+              className="space-y-6"
+            >
+              <SettingsPanel delayIndex={1} />
+            </motion.div>
+          )}
+
+          {activeNav === 'memories' && (
+            <motion.div 
+              key="memories" 
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="flex flex-col gap-[var(--card-gap)]"
+            >
+              <CalendarSchedules activeUser={activeUser} delayIndex={1} />
+              <MemoriesTimeline anniversaryDate={anniversaryDate} delayIndex={2} />
+              <MilestoneTimeline now={now} anniversaryDate={anniversaryDate} delayIndex={3} />
+              <LoveLetterDraft activeUser={activeUser} delayIndex={4} />
+              <BucketListPreview delayIndex={5} activeUser={activeUser} />
+              <ScoreSummary scores={gameScores} delayIndex={6} />
+              <FinalMessage days={days} onRestart={onRestart} anniversaryDate={anniversaryDate} delayIndex={7} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
-      <BottomNav active={activeNav} />
+      <BottomNav active={activeNav} onNav={setActiveNav} />
     </div>
 
     {/* Page-Wide Universal Lightbox Portal Overlay */}
@@ -2386,10 +4052,14 @@ export const S_CoupleProfile: React.FC<S_CoupleProfileProps> = ({
         {lightboxState !== null && (
           <motion.div 
             key="lightbox-fullscreen"
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="fixed inset-0 z-[10000] bg-black/98 backdrop-blur-3xl flex flex-col items-center justify-between py-6 px-4 cursor-default select-none animate-fade-in" 
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ 
+              opacity: 1, 
+              scale: 1,
+              transition: { type: "spring", stiffness: 300, damping: 28 }
+            }} 
+            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }} 
+            className="fixed inset-0 z-[10000] bg-black/98 backdrop-blur-3xl flex flex-col items-center justify-between py-6 px-4 cursor-default select-none -webkit-overflow-scrolling-touch" 
             onClick={() => { 
               if (zoomScale === 1) {
                 sounds.clickSound(); 
@@ -2545,6 +4215,14 @@ export const S_CoupleProfile: React.FC<S_CoupleProfileProps> = ({
                     <RotateCcw size={15} />
                   </button>
                 )}
+                
+                <button 
+                  onClick={handleShareCurrentImage}
+                  className="p-1.5 hover:bg-white/15 rounded-full text-[#EBC2C6] transition-all cursor-pointer border-l border-white/15 pl-3.5 flex items-center justify-center gap-1.5"
+                  title="Share Memory"
+                >
+                  {imgShareCopied ? <Check size={16} className="text-green-400" /> : <Share2 size={16} />}
+                </button>
               </div>
 
               {/* Details (caption / title text) */}

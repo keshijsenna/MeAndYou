@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Cat, Moon, Star } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Cat, Moon, Star, Mic, Square, Play } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
 import { CARD_PAIRS } from '../../lib/constants';
 import { sounds } from '../../lib/sounds';
 import { useAppStore } from '../../lib/store';
@@ -38,6 +38,15 @@ export const S05_MemoryCard: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isWin, setIsWin] = useState(false);
   
+  // Voice Memo states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordTime, setRecordTime] = useState(0);
+  const [memoBase64, setMemoBase64] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const { goToNext, setGameState } = useAppStore();
 
   const initGame = () => {
@@ -54,6 +63,8 @@ export const S05_MemoryCard: React.FC = () => {
     setTimeLeft(60);
     setIsGameOver(false);
     setIsWin(false);
+    setMemoBase64(null);
+    setRecordTime(0);
   };
 
   useEffect(() => {
@@ -134,6 +145,67 @@ export const S05_MemoryCard: React.FC = () => {
       case 'moon': return <Moon size={48} color={color} fill={color} />;
       case 'cat': return <Cat size={48} color={color} />;
       default: return null;
+    }
+  };
+
+  const startRecord = async () => {
+    try {
+      if (!navigator.mediaDevices) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // MediaRecorder cross-compatibility
+      let rType = '';
+      if (MediaRecorder.isTypeSupported('audio/webm')) rType = 'audio/webm';
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) rType = 'audio/mp4';
+      
+      const recorder = rType ? new MediaRecorder(stream, { mimeType: rType }) : new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: rType || 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => setMemoBase64(reader.result as string);
+        reader.readAsDataURL(blob);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setIsRecording(false);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordTime(prev => {
+          if (prev >= 29) {
+             recorder.stop();
+             return 30;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } catch {
+      console.warn("Mic error");
+    }
+  };
+
+  const stopRecord = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current && memoBase64) {
+      audioRef.current = new Audio(memoBase64);
+      audioRef.current.onended = () => setIsPlaying(false);
+    }
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
     }
   };
 
@@ -250,6 +322,32 @@ export const S05_MemoryCard: React.FC = () => {
            >
               <h3 className="text-[28px] font-bold text-[#EBC2C6] mb-2">Kamu Berhasil!</h3>
               <p className="text-[14px] text-[var(--text-primary)] mb-6">Selesai dalam {60 - timeLeft} detik</p>
+              
+              {/* Voice Memo Feature */}
+              <div className="flex flex-col items-center mb-6 bg-white/5 p-4 rounded-[20px] border border-white/10 w-full max-w-[240px]">
+                <p className="text-[10px] font-bold tracking-widest uppercase text-white/50 mb-3">Tinggalkan Pesan Manis</p>
+                {memoBase64 ? (
+                  <button onClick={togglePlay} className="flex items-center gap-2 px-6 py-3 bg-[#EBC2C6]/20 border border-[#EBC2C6]/30 text-[#EBC2C6] rounded-full hover:bg-[#EBC2C6]/30">
+                    {isPlaying ? <Square size={16} className="fill-[#EBC2C6]" /> : <Play size={16} className="fill-[#EBC2C6]" />}
+                    <span className="text-[12px] font-bold">{isPlaying ? 'Playing...' : 'Putar Pesan'}</span>
+                  </button>
+                ) : (
+                  <button 
+                    onPointerDown={startRecord} 
+                    onPointerUp={stopRecord}
+                    onPointerLeave={stopRecord}
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 scale-110' : 'bg-white/10 hover:bg-white/20'}`}
+                  >
+                    {isRecording ? (
+                      <span className="text-[10px] absolute -bottom-6 text-white font-mono">{recordTime}s</span>
+                    ) : null}
+                    <Mic size={24} className={isRecording ? 'text-white translate-y-[-2px]' : 'text-white/60'} />
+                    {isRecording && <div className="absolute inset-0 rounded-full border-2 border-red-400 animate-ping" />}
+                  </button>
+                )}
+                <p className="text-[9px] text-white/40 mt-3 text-center">{!memoBase64 ? 'Tahan tombol untuk merekam (Max 30s)' : 'Tersimpan lokal ✨'}</p>
+              </div>
+
               <button 
                 onClick={() => goToNext()}
                 className="px-10 py-[14px] bg-[image:var(--gradient-btn)] rounded-[60px] text-[#1A0A0C] font-semibold hover:scale-105 transition-transform"

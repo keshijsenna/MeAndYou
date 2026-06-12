@@ -1,58 +1,140 @@
 {
   "entities": {
-    "Mood": {
-      "title": "Mood",
-      "description": "Daily mood log of a partner",
+    "Message": {
+      "title": "Message",
+      "description": "Chat messages between the couple.",
       "type": "object",
       "properties": {
-        "userId": { "type": "string", "description": "The partner who set the mood (Nauraa or Farsya)" },
-        "dateStr": { "type": "string", "description": "Date string of the mood" },
-        "displayDate": { "type": "string", "description": "Formatted date displayed to the user" },
-        "time": { "type": "string", "description": "Formatted time representation of the mood" },
-        "mood": { "type": "string", "description": "Emoji representing the mood" },
-        "label": { "type": "string", "description": "Mood label description" },
-        "color": { "type": "string", "description": "Hex color profile associated with the mood" },
-        "note": { "type": "string", "description": "An optional romantic or descriptive note" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
-      },
-      "required": ["userId", "dateStr", "displayDate", "time", "mood", "label", "color", "note", "createdAt"]
-    },
-    "ChatMessage": {
-      "title": "ChatMessage",
-      "description": "Love letters, chats, and voice notes shared between partners",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string", "description": "The sender of the message" },
-        "text": { "type": "string", "description": "Text message content" },
-        "voiceBase64": { "type": "string", "description": "Optional base64 raw recorded audio data for voice note" },
-        "voiceDuration": { "type": "integer", "description": "Optional recorded duration of the voice note" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "voiceBase64": { "type": "string", "description": "Optional base64 encoded voice data or tiny thumbnail" },
+        "voiceUrl": { "type": "string", "description": "Link to voice note in Firebase Storage" },
+        "voiceDuration": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "text", "createdAt"]
     },
-    "SecuritySettings": {
-      "title": "SecuritySettings",
-      "description": "PIN lock screen security settings",
+    "Mood": {
+      "title": "Mood",
+      "description": "Daily mood logs for the couple.",
       "type": "object",
       "properties": {
-        "pinHash": { "type": "string", "description": "Encrypted/Hashed 4-digit PIN for device lock screen security" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of security configuration" }
+        "userId": { "type": "string" },
+        "dateStr": { "type": "string", "description": "YYYY-MM-DD string" },
+        "displayDate": { "type": "string" },
+        "time": { "type": "string" },
+        "mood": { "type": "string", "description": "Emoji" },
+        "label": { "type": "string" },
+        "color": { "type": "string" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["pinHash"]
+      "required": ["userId", "dateStr", "mood", "createdAt"]
+    },
+    "Dream": {
+      "title": "Dream",
+      "description": "Shared dreams and bucket list items.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "done": { "type": "boolean" },
+        "color": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "done"]
+    },
+    "Schedule": {
+      "title": "Schedule",
+      "description": "Planned dates or events.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "title": { "type": "string" },
+        "location": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "title"]
+    },
+    "LoveLetter": {
+      "title": "Love Letter",
+      "description": "Drafts of love letters.",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["content", "userId"]
+    },
+    "Photo": {
+      "title": "Photo",
+      "description": "Shared photos in the gallery.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "caption": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url"]
+    },
+    "Memory": {
+      "title": "Memory",
+      "description": "Timeline memories.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "likes": { "type": "number" },
+        "img": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["title", "date"]
     }
   },
   "firestore": {
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Global chat messages."
+    },
     "/moods/{moodId}": {
       "schema": "Mood",
-      "description": "Mood logs recorded by Nauraa or Farsya"
+      "description": "Daily mood entries."
     },
-    "/messages/{messageId}": {
-      "schema": "ChatMessage",
-      "description": "Chat and voice messages exchanged"
+    "/dreams/{dreamId}": {
+      "schema": "Dream",
+      "description": "Couple bucket list."
     },
-    "/settings/{settingId}": {
-      "schema": "SecuritySettings",
-      "description": "Device lock and security settings"
+    "/schedules/{scheduleId}": {
+      "schema": "Schedule",
+      "description": "Calendar events."
+    },
+    "/love_letters/{userId}": {
+      "schema": "LoveLetter",
+      "description": "One draft per user."
+    },
+    "/photos/{photoId}": {
+      "schema": "Photo",
+      "description": "Gallery images."
+    },
+    "/memories/{memoryId}": {
+      "schema": "Memory",
+      "description": "Shared timeline entries."
+    },
+    "/settings/appLock": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pinHash": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "App-level settings."
     }
   }
 }

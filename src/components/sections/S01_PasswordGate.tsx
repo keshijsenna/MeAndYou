@@ -21,8 +21,9 @@ export const S01_PasswordGate: React.FC = () => {
 
     sounds.clickSound();
     
-    // Check password: "24526" (24 March 2026) -> user request 24/5/26
-    if (password.trim() === '24526') {
+    // Check password: "24426" (24 April 2026) or legacy "24526" / "24326"
+    const trimmed = password.trim();
+    if (trimmed === '24426' || trimmed === '24526' || trimmed === '24326') {
       setIsSuccess(true);
       sounds.confettiSound();
       confetti({
@@ -41,7 +42,7 @@ export const S01_PasswordGate: React.FC = () => {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
       if (newAttempts >= 3) {
-        setErrorMsg('Coba ingat tanggal spesial kita — 24 Maret 2026 (24526)');
+        setErrorMsg('Coba ingat tanggal jadian spesial kita — 24 April 2026 (24426)');
       } else {
         setErrorMsg('Kode salah, coba lagi sayang');
       }
